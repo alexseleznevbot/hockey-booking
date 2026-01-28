@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Users, CheckCircle, XCircle, Bell, Plus, Trash2, Search, ChevronLeft, ChevronRight, User, Phone, ArrowLeft } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbx9qlCV4gJLJrqQsrjCNZvHwRhM7gx52nv1VZvSB4x9PD0ZKOpDE-F95Z-HcJwlaTN6WA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwxfFPnYvOQcKsmevzV66Ew0dHo40mbH6GegbAc2tlsTye6HVyBtXvSCoUlDcHR58p_6A/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Brand Logo as base64
