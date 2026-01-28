@@ -3,7 +3,7 @@ import { Calendar, Clock, Users, CheckCircle, XCircle, Bell, Plus, Trash2, Searc
 
 // API Configuration
 // ВАЖНО: Вставь свою ссылку /exec между кавычек ниже
-const API_URL = 'const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';';
+const API_URL = 'const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Brand Logo
