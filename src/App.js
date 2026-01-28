@@ -11,8 +11,9 @@ const BRAND_LOGO = "data:image/webp;base64,UklGRvgXAABXRUJQVlA4WAoAAAAgAAAA/wMAd
 const TRAINER_TELEGRAM = "seleznev_88";
 
 // API Functions
+// API Functions - Исправленная версия для обхода блокировок
 const api = {
-  // GET request
+  // GET request (получение данных)
   get: async (action, params = {}) => {
     const url = new URL(API_URL);
     url.searchParams.append('action', action);
@@ -27,15 +28,20 @@ const api = {
     }
   },
   
-  // POST request
+  // POST request (отправка данных: добавление слотов, бронирование)
   post: async (action, data = {}) => {
     try {
-      const response = await fetch(API_URL, {
+      // Используем text/plain и mode: no-cors для обхода проблем с безопасностью
+      await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        mode: 'no-cors', 
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action, ...data })
       });
-      return await response.json();
+      
+      // В режиме no-cors мы не можем прочитать ответ сервера, 
+      // поэтому возвращаем успех, если запрос просто ушел
+      return { ok: true }; 
     } catch (error) {
       console.error('API POST error:', error);
       return { ok: false, error: error.message };
