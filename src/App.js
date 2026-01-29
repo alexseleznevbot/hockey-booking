@@ -51,6 +51,7 @@ const BookingSystem = () => {
 
   const [hockeySlots, setHockeySlots] = useState([]);
   const [hockeyBookings, setHockeyBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDates, setSelectedDates] = useState([]);
@@ -63,6 +64,10 @@ const BookingSystem = () => {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [showMyBookings, setShowMyBookings] = useState(false);
   const [myBookingsPhone, setMyBookingsPhone] = useState('');
+  
+  // Admin: slots to delete
+  const [slotsToDelete, setSlotsToDelete] = useState([]);
+  const [showDeleteMode, setShowDeleteMode] = useState(false);
 
   const timeTemplates = {
     full: { name: 'Полный день (9:00 - 21:30)', times: ['09:00', '10:15', '11:30', '12:45', '14:00', '15:15', '16:30', '17:45', '19:00', '20:15', '21:30'] },
@@ -88,13 +93,33 @@ const BookingSystem = () => {
     setLoading(false);
   };
 
-  // Load bookings by phone
+  // Load all bookings (admin)
+  const loadAllBookings = async () => {
+    const result = await api.get('getAllBookings', { adminSecret: ADMIN_SECRET });
+    if (result.ok) {
+      setAllBookings(result.bookings || []);
+    }
+  };
+
+  // Load bookings by phone (client)
   const loadBookingsByPhone = async (phone) => {
     if (!phone) return;
     setLoading(true);
-    const result = await api.get('getBookingsByPhone', { phone });
+    
+    // Normalize phone for search
+    const normalizedPhone = phone.replace(/\D/g, '');
+    
+    const result = await api.get('getBookingsByPhone', { phone: normalizedPhone });
     if (result.ok) {
       setHockeyBookings(result.bookings || []);
+    } else {
+      // Try with original phone
+      const result2 = await api.get('getBookingsByPhone', { phone: phone });
+      if (result2.ok) {
+        setHockeyBookings(result2.bookings || []);
+      } else {
+        setHockeyBookings([]);
+      }
     }
     setLoading(false);
   };
@@ -109,6 +134,7 @@ const BookingSystem = () => {
       setIsAdminAuth(true);
       setView('admin');
       loadSlots();
+      loadAllBookings();
     } else {
       alert('Неверный пароль');
     }
@@ -131,6 +157,25 @@ const BookingSystem = () => {
       alert(`Добавлено ${result.added} слотов`);
       await loadSlots();
       setSelectedDates([]);
+    } else {
+      alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+    }
+    setLoading(false);
+  };
+
+  // Delete slots (admin)
+  const deleteSelectedSlots = async () => {
+    if (slotsToDelete.length === 0) return alert('Выберите слоты для удаления');
+    
+    if (!window.confirm(`Удалить ${slotsToDelete.length} слотов?`)) return;
+
+    setLoading(true);
+    const result = await api.post('adminDeleteSlots', { adminSecret: ADMIN_SECRET, slotIds: slotsToDelete });
+    if (result.ok) {
+      alert(`Удалено ${result.deleted || slotsToDelete.length} слотов`);
+      await loadSlots();
+      setSlotsToDelete([]);
+      setShowDeleteMode(false);
     } else {
       alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
     }
@@ -170,6 +215,7 @@ const BookingSystem = () => {
     if (result.ok) {
       alert('Заявка подтверждена');
       await loadSlots();
+      await loadAllBookings();
     } else {
       alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
     }
@@ -183,6 +229,7 @@ const BookingSystem = () => {
     if (result.ok) {
       alert('Заявка отклонена');
       await loadSlots();
+      await loadAllBookings();
     } else {
       alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
     }
@@ -219,7 +266,6 @@ const BookingSystem = () => {
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
   const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
-  // Get today's date in YYYY-MM-DD format
   const getTodayStr = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -324,45 +370,52 @@ const BookingSystem = () => {
             <div className="mb-4">
               <input
                 type="tel"
-                placeholder="Введите телефон"
+                placeholder="Введите ваш телефон"
                 value={myBookingsPhone}
                 onChange={(e) => setMyBookingsPhone(e.target.value)}
                 className="w-full p-3 border-2 rounded-lg"
               />
               <button 
                 onClick={() => loadBookingsByPhone(myBookingsPhone)}
-                disabled={loading}
+                disabled={loading || !myBookingsPhone}
                 className="w-full bg-black text-white p-3 rounded-lg mt-2 disabled:opacity-50"
               >
-                {loading ? 'Поиск...' : 'Найти записи'}
+                {loading ? 'Поиск...' : 'Найти мои записи'}
               </button>
             </div>
+            
             {hockeyBookings.length > 0 ? (
               <div className="space-y-3">
                 {hockeyBookings.map(booking => (
                   <div key={booking.id} className={`bg-white p-4 rounded-xl border-2 ${
                     booking.status === 'confirmed' ? 'border-green-400' :
-                    booking.status === 'pending' ? 'border-yellow-400' : 'border-gray-200'
+                    booking.status === 'pending' ? 'border-yellow-400' :
+                    booking.status === 'rejected' ? 'border-red-400' : 'border-gray-200'
                   }`}>
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-bold">{booking.name}</p>
-                        <p className="text-gray-600 text-sm">{booking.slotIds}</p>
+                        <p className="font-bold text-lg">{booking.name}</p>
+                        <p className="text-gray-600">{booking.slotIds?.replace(/,/g, ', ')}</p>
+                        {booking.comment && <p className="text-gray-500 text-sm mt-1">💬 {booking.comment}</p>}
                       </div>
-                      <span className={`px-2 py-1 rounded text-sm ${
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                         booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
                         booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                        booking.status === 'rejected' ? 'bg-red-100 text-red-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
                         {booking.status === 'confirmed' ? '✅ Подтверждено' :
-                         booking.status === 'pending' ? '⏳ Ожидает' : booking.status}
+                         booking.status === 'pending' ? '⏳ Ожидает' :
+                         booking.status === 'rejected' ? '❌ Отклонено' : booking.status}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">Записи не найдены</p>
+              <div className="bg-white p-8 rounded-xl text-center">
+                <p className="text-gray-500">Введите телефон и нажмите "Найти"</p>
+              </div>
             )}
           </div>
         </div>
@@ -464,9 +517,6 @@ const BookingSystem = () => {
                       </button>
                     ))}
                   </div>
-                  {getSlotsForDate(clientSelectedDate).length === 0 && (
-                    <p className="text-gray-500 text-center py-4">Нет доступных слотов на эту дату</p>
-                  )}
                 </div>
               )}
 
@@ -532,12 +582,11 @@ const BookingSystem = () => {
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentMonth);
     const today = getTodayStr();
 
-    // Get pending bookings from slots
     const pendingSlots = hockeySlots.filter(s => s.status === 'pending');
     const confirmedSlots = hockeySlots.filter(s => s.status === 'booked');
     const availableSlots = hockeySlots.filter(s => s.status === 'available');
 
-    // Group by bookingId
+    // Group pending by bookingId
     const pendingBookings = {};
     pendingSlots.forEach(slot => {
       if (slot.bookingId) {
@@ -547,6 +596,11 @@ const BookingSystem = () => {
         pendingBookings[slot.bookingId].slots.push(slot);
       }
     });
+
+    // Find booking details
+    const getBookingDetails = (bookingId) => {
+      return allBookings.find(b => b.id === bookingId) || {};
+    };
 
     return (
       <div className="min-h-screen bg-gray-100 p-4">
@@ -558,7 +612,7 @@ const BookingSystem = () => {
               <h1 className="text-xl font-bold">Панель тренера</h1>
             </div>
             <div className="flex gap-2">
-              <button onClick={loadSlots} disabled={loading} className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 disabled:opacity-50">
+              <button onClick={() => { loadSlots(); loadAllBookings(); }} disabled={loading} className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 disabled:opacity-50">
                 🔄 {loading ? '...' : 'Обновить'}
               </button>
               <button onClick={() => { setIsAdminAuth(false); setView('select'); }} className="bg-black text-white px-4 py-2 rounded-lg">
@@ -594,34 +648,50 @@ const BookingSystem = () => {
             <div className="bg-yellow-50 p-6 rounded-2xl border-2 border-yellow-400 mb-6">
               <h2 className="text-xl font-bold mb-4">⏳ Новые заявки ({Object.keys(pendingBookings).length})</h2>
               <div className="space-y-4">
-                {Object.entries(pendingBookings).map(([bookingId, booking]) => (
-                  <div key={bookingId} className="bg-white p-4 rounded-xl border">
-                    <div className="flex justify-between items-start flex-wrap gap-4">
-                      <div>
-                        <p className="font-bold text-lg">
-                          {booking.slots.map(s => `${s.date} ${s.time}`).join(', ')}
-                        </p>
-                        <p className="text-gray-500 text-sm">ID: {bookingId.slice(0, 12)}...</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => confirmBooking(bookingId)}
-                          disabled={loading}
-                          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50"
-                        >
-                          ✅ Подтвердить
-                        </button>
-                        <button
-                          onClick={() => rejectBooking(bookingId)}
-                          disabled={loading}
-                          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 disabled:opacity-50"
-                        >
-                          ❌ Отклонить
-                        </button>
+                {Object.entries(pendingBookings).map(([bookingId, booking]) => {
+                  const details = getBookingDetails(bookingId);
+                  return (
+                    <div key={bookingId} className="bg-white p-4 rounded-xl border">
+                      <div className="flex justify-between items-start flex-wrap gap-4">
+                        <div>
+                          <p className="font-bold text-lg">{details.name || 'Без имени'}</p>
+                          <p className="text-gray-600">📞 {details.phone || 'Нет телефона'}</p>
+                          {details.telegram && <p className="text-gray-600">✈️ @{details.telegram}</p>}
+                          <p className="text-gray-500 mt-2">
+                            🕐 {booking.slots.map(s => `${s.date} ${s.time}`).join(', ')}
+                          </p>
+                          {details.comment && <p className="text-gray-500 mt-1">💬 {details.comment}</p>}
+                        </div>
+                        <div className="flex gap-2">
+                          {details.phone && (
+                            <a href={`tel:${details.phone}`} className="bg-blue-500 text-white px-3 py-2 rounded-lg">
+                              📞
+                            </a>
+                          )}
+                          {details.telegram && (
+                            <a href={`https://t.me/${details.telegram}`} target="_blank" rel="noopener noreferrer" className="bg-blue-400 text-white px-3 py-2 rounded-lg">
+                              ✈️
+                            </a>
+                          )}
+                          <button
+                            onClick={() => confirmBooking(bookingId)}
+                            disabled={loading}
+                            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50"
+                          >
+                            ✅ Подтвердить
+                          </button>
+                          <button
+                            onClick={() => rejectBooking(bookingId)}
+                            disabled={loading}
+                            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 disabled:opacity-50"
+                          >
+                            ❌ Отклонить
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -630,7 +700,6 @@ const BookingSystem = () => {
           <div className="bg-white p-6 rounded-2xl border-2 border-black mb-6">
             <h2 className="text-xl font-bold mb-4">➕ Добавить слоты</h2>
             
-            {/* Calendar */}
             <div className="mb-4">
               <div className="flex justify-between items-center mb-4">
                 <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} className="p-2">
@@ -673,7 +742,6 @@ const BookingSystem = () => {
               </div>
             </div>
 
-            {/* Template selection */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2">Шаблон времени:</label>
               <select
@@ -689,9 +757,7 @@ const BookingSystem = () => {
 
             {selectedDates.length > 0 && (
               <div className="mb-4 p-3 bg-gray-100 rounded-lg">
-                <p className="text-sm text-gray-600">📅 Выбрано дат: <strong>{selectedDates.length}</strong></p>
-                <p className="text-sm text-gray-600">🕐 Слотов на дату: <strong>{timeTemplates[selectedTemplate].times.length}</strong></p>
-                <p className="text-sm text-gray-600">📊 Всего будет добавлено: <strong>{selectedDates.length * timeTemplates[selectedTemplate].times.length}</strong> слотов</p>
+                <p className="text-sm">📅 Дат: <strong>{selectedDates.length}</strong> | 🕐 Слотов: <strong>{selectedDates.length * timeTemplates[selectedTemplate].times.length}</strong></p>
               </div>
             )}
 
@@ -704,35 +770,62 @@ const BookingSystem = () => {
             </button>
           </div>
 
-          {/* All slots list */}
+          {/* Slots list with delete */}
           <div className="bg-white p-6 rounded-2xl border">
-            <h2 className="text-xl font-bold mb-4">📅 Все слоты ({hockeySlots.length})</h2>
-            <div className="max-h-64 overflow-y-auto">
-              {hockeySlots.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">Слотов пока нет. Добавьте их выше.</p>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">📅 Все слоты ({hockeySlots.length})</h2>
+              <div className="flex gap-2">
+                {showDeleteMode ? (
+                  <>
+                    <button
+                      onClick={deleteSelectedSlots}
+                      disabled={slotsToDelete.length === 0 || loading}
+                      className="bg-red-500 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                    >
+                      🗑 Удалить ({slotsToDelete.length})
+                    </button>
+                    <button
+                      onClick={() => { setShowDeleteMode(false); setSlotsToDelete([]); }}
+                      className="bg-gray-300 px-4 py-2 rounded-lg"
+                    >
+                      Отмена
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowDeleteMode(true)}
+                    className="bg-red-100 text-red-600 px-4 py-2 rounded-lg hover:bg-red-200"
+                  >
+                    🗑 Режим удаления
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="max-h-96 overflow-y-auto">
+              {availableSlots.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">Свободных слотов нет</p>
               ) : (
                 <div className="space-y-2">
-                  {hockeySlots.slice(0, 30).map(slot => (
-                    <div key={slot.id} className={`flex justify-between items-center p-3 rounded border ${
-                      slot.status === 'available' ? 'bg-green-50 border-green-200' :
-                      slot.status === 'pending' ? 'bg-yellow-50 border-yellow-200' :
-                      slot.status === 'booked' ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'
-                    }`}>
+                  {availableSlots.sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).map(slot => (
+                    <div 
+                      key={slot.id} 
+                      onClick={() => showDeleteMode && setSlotsToDelete(prev => 
+                        prev.includes(slot.id) ? prev.filter(id => id !== slot.id) : [...prev, slot.id]
+                      )}
+                      className={`flex justify-between items-center p-3 rounded border cursor-pointer transition-all ${
+                        slotsToDelete.includes(slot.id) ? 'bg-red-100 border-red-400' :
+                        showDeleteMode ? 'hover:bg-red-50' : 'bg-green-50 border-green-200'
+                      }`}
+                    >
                       <span className="font-medium">{slot.date} в {slot.time}</span>
-                      <span className={`text-sm px-2 py-1 rounded ${
-                        slot.status === 'available' ? 'bg-green-100 text-green-700' :
-                        slot.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                        slot.status === 'booked' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'
-                      }`}>
-                        {slot.status === 'available' ? 'Свободен' :
-                         slot.status === 'pending' ? 'Ожидает' :
-                         slot.status === 'booked' ? 'Забронирован' : slot.status}
-                      </span>
+                      {showDeleteMode && (
+                        <span className={`text-sm ${slotsToDelete.includes(slot.id) ? 'text-red-600' : 'text-gray-400'}`}>
+                          {slotsToDelete.includes(slot.id) ? '✓ Выбран' : 'Нажмите для выбора'}
+                        </span>
+                      )}
                     </div>
                   ))}
-                  {hockeySlots.length > 30 && (
-                    <p className="text-center text-gray-500 py-2">... и ещё {hockeySlots.length - 30} слотов</p>
-                  )}
                 </div>
               )}
             </div>
