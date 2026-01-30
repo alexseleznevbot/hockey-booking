@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Users, CheckCircle, XCircle, Bell, Plus, Trash2, Search, ChevronLeft, ChevronRight, User, Phone, ArrowLeft } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyksjcEnphPNFKjZDOs6tE4RIfsIIsiXXnzcM7V9HEcnO0SY4dvpcb9TabRnVTEkSDGRg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
-// Brand Logo as base64
-const BRAND_LOGO = "data:image/webp;base64,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";
+// Brand Logo
+// Hockey puck logo (simple SVG as data URI)
+const BRAND_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cellipse cx='50' cy='50' rx='45' ry='25' fill='%23111'/%3E%3Cellipse cx='50' cy='45' rx='45' ry='25' fill='%23333'/%3E%3Cellipse cx='50' cy='45' rx='35' ry='18' fill='none' stroke='%23555' stroke-width='2'/%3E%3C/svg%3E";
 
-// Telegram тренера для связи
 const TRAINER_TELEGRAM = "seleznev_88";
+
+// Detect Telegram Mini App
+const isTelegramWebApp = typeof window !== 'undefined' && window.Telegram?.WebApp;
+if (isTelegramWebApp) {
+  window.Telegram.WebApp.ready();
+  window.Telegram.WebApp.expand();
+}
 
 // API Functions
 const api = {
@@ -17,16 +24,13 @@ const api = {
     const url = new URL(API_URL);
     url.searchParams.append('action', action);
     Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-    
     try {
       const response = await fetch(url.toString());
       return await response.json();
     } catch (error) {
-      console.error('API GET error:', error);
       return { ok: false, error: error.message };
     }
   },
-  
   post: async (action, data = {}) => {
     try {
       const response = await fetch(API_URL, {
@@ -36,22 +40,57 @@ const api = {
       });
       return await response.json();
     } catch (error) {
-      console.error('API POST error:', error);
       return { ok: false, error: error.message };
     }
   }
 };
+
+// Toast
+const Toast = ({ message, type, onClose }) => (
+  <div className={`fixed top-4 left-4 right-4 z-50 p-4 rounded-xl shadow-lg ${
+    type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-gray-800'
+  } text-white`} style={{ animation: 'slideDown 0.3s ease' }}>
+    <div className="flex justify-between items-center">
+      <span>{message}</span>
+      <button onClick={onClose} className="ml-4"><X size={18} /></button>
+    </div>
+  </div>
+);
+
+// Modal
+const Modal = ({ isOpen, onClose, children, title }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white p-4 border-b flex justify-between items-center">
+          <h3 className="font-bold text-lg">{title}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+        </div>
+        <div className="p-4">{children}</div>
+      </div>
+    </div>
+  );
+};
+
+// Spinner
+const Spinner = () => (
+  <div className="flex justify-center py-8">
+    <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+  </div>
+);
 
 const BookingSystem = () => {
   const [view, setView] = useState('select');
   const [adminPassword, setAdminPassword] = useState('');
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const [hockeySlots, setHockeySlots] = useState([]);
   const [hockeyBookings, setHockeyBookings] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
+  const [cancellations, setCancellations] = useState([]);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDates, setSelectedDates] = useState([]);
@@ -65,773 +104,566 @@ const BookingSystem = () => {
   const [showMyBookings, setShowMyBookings] = useState(false);
   const [myBookingsPhone, setMyBookingsPhone] = useState('');
   
-  // Admin: slots to delete
   const [slotsToDelete, setSlotsToDelete] = useState([]);
   const [showDeleteMode, setShowDeleteMode] = useState(false);
+  const [cancelModal, setCancelModal] = useState({ open: false, booking: null });
+  const [cancelReason, setCancelReason] = useState('');
 
   const timeTemplates = {
-    full: { name: 'Полный день (9:00 - 21:30)', times: ['09:00', '10:15', '11:30', '12:45', '14:00', '15:15', '16:30', '17:45', '19:00', '20:15', '21:30'] },
-    morning: { name: 'Утро (9:00 - 12:45)', times: ['09:00', '10:15', '11:30', '12:45'] },
-    afternoon: { name: 'День (14:00 - 17:45)', times: ['14:00', '15:15', '16:30', '17:45'] },
-    evening: { name: 'Вечер (19:00 - 21:30)', times: ['19:00', '20:15', '21:30'] }
+    full: { name: 'Весь день', times: ['09:00','10:15','11:30','12:45','14:00','15:15','16:30','17:45','19:00','20:15','21:30'] },
+    morning: { name: 'Утро', times: ['09:00','10:15','11:30','12:45'] },
+    afternoon: { name: 'День', times: ['14:00','15:15','16:30','17:45'] },
+    evening: { name: 'Вечер', times: ['19:00','20:15','21:30'] }
   };
 
-  // Load slots from API
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const loadSlots = async () => {
     setLoading(true);
-    setError(null);
-    try {
-      const result = await api.get('getSlots');
-      if (result.ok) {
-        setHockeySlots(result.slots || []);
-      } else {
-        setError('Ошибка загрузки: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    } catch (e) {
-      setError('Ошибка сети: ' + e.message);
-    }
+    const result = await api.get('getSlots');
+    if (result.ok) setHockeySlots(result.slots || []);
     setLoading(false);
   };
 
-  // Load all bookings (admin)
   const loadAllBookings = async () => {
     const result = await api.get('getAllBookings', { adminSecret: ADMIN_SECRET });
-    if (result.ok) {
-      setAllBookings(result.bookings || []);
-    }
+    if (result.ok) setAllBookings(result.bookings || []);
   };
 
-  // Load bookings by phone (client)
+  const loadCancellations = async () => {
+    const result = await api.get('getCancellations', { adminSecret: ADMIN_SECRET });
+    if (result.ok) setCancellations(result.cancellations || []);
+  };
+
   const loadBookingsByPhone = async (phone) => {
     if (!phone) return;
     setLoading(true);
-    
-    // Normalize phone for search
-    const normalizedPhone = phone.replace(/\D/g, '');
-    
-    const result = await api.get('getBookingsByPhone', { phone: normalizedPhone });
-    if (result.ok) {
-      setHockeyBookings(result.bookings || []);
-    } else {
-      // Try with original phone
-      const result2 = await api.get('getBookingsByPhone', { phone: phone });
-      if (result2.ok) {
-        setHockeyBookings(result2.bookings || []);
-      } else {
-        setHockeyBookings([]);
-      }
-    }
+    const result = await api.get('getBookingsByPhone', { phone: phone.replace(/\D/g, '') });
+    setHockeyBookings(result.ok ? result.bookings || [] : []);
     setLoading(false);
   };
 
-  useEffect(() => {
-    loadSlots();
-  }, []);
+  useEffect(() => { loadSlots(); }, []);
 
-  // Admin login
   const handleAdminLogin = () => {
     if (adminPassword === ADMIN_SECRET) {
       setIsAdminAuth(true);
       setView('admin');
-      loadSlots();
-      loadAllBookings();
+      loadSlots(); loadAllBookings(); loadCancellations();
     } else {
-      alert('Неверный пароль');
+      showToast('Неверный пароль', 'error');
     }
   };
 
-  // Add slots (admin)
   const addSlotsFromCalendar = async () => {
-    if (selectedDates.length === 0) return alert('Выберите даты');
-    const times = timeTemplates[selectedTemplate].times;
+    if (selectedDates.length === 0) return showToast('Выберите даты', 'error');
     const slotsToAdd = [];
     selectedDates.forEach(date => {
-      times.forEach(time => {
+      timeTemplates[selectedTemplate].times.forEach(time => {
         slotsToAdd.push({ date, time, id: `${date}-${time}-${Date.now()}` });
       });
     });
-
     setLoading(true);
     const result = await api.post('adminAddSlots', { adminSecret: ADMIN_SECRET, slots: slotsToAdd });
     if (result.ok) {
-      alert(`Добавлено ${result.added} слотов`);
+      showToast(`Добавлено ${result.added} слотов`, 'success');
       await loadSlots();
       setSelectedDates([]);
-    } else {
-      alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
     }
     setLoading(false);
   };
 
-  // Delete slots (admin)
   const deleteSelectedSlots = async () => {
-    if (slotsToDelete.length === 0) return alert('Выберите слоты для удаления');
-    
-    if (!window.confirm(`Удалить ${slotsToDelete.length} слотов?`)) return;
-
+    if (slotsToDelete.length === 0) return;
     setLoading(true);
     const result = await api.post('adminDeleteSlots', { adminSecret: ADMIN_SECRET, slotIds: slotsToDelete });
     if (result.ok) {
-      alert(`Удалено ${result.deleted || slotsToDelete.length} слотов`);
+      showToast(`Удалено ${result.deleted} слотов`, 'success');
       await loadSlots();
       setSlotsToDelete([]);
       setShowDeleteMode(false);
-    } else {
-      alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
     }
     setLoading(false);
   };
 
-  // Create booking (client)
   const submitBooking = async () => {
     if (!clientForm.name || !clientForm.phone || selectedSlots.length === 0) {
-      return alert('Заполните имя, телефон и выберите время');
+      return showToast('Заполните имя и телефон', 'error');
     }
-
     setLoading(true);
     const result = await api.post('createBooking', {
       slotIds: selectedSlots,
-      name: clientForm.name,
-      phone: clientForm.phone,
-      telegram: clientForm.telegram,
-      comment: clientForm.comment
+      ...clientForm
     });
-
     if (result.ok) {
       setBookingSuccess(true);
       setSelectedSlots([]);
       setClientForm({ name: '', phone: '', telegram: '', comment: '' });
       await loadSlots();
     } else {
-      alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+      showToast('Ошибка: ' + result.error, 'error');
     }
     setLoading(false);
   };
 
-  // Confirm booking (admin)
+  const requestCancellation = async () => {
+    if (!cancelModal.booking) return;
+    setLoading(true);
+    const result = await api.post('requestCancellation', {
+      bookingId: cancelModal.booking.id,
+      phone: myBookingsPhone,
+      reason: cancelReason
+    });
+    if (result.ok) {
+      showToast('Запрос на отмену отправлен', 'success');
+      setCancelModal({ open: false, booking: null });
+      setCancelReason('');
+      await loadBookingsByPhone(myBookingsPhone);
+    } else {
+      showToast('Ошибка: ' + result.error, 'error');
+    }
+    setLoading(false);
+  };
+
   const confirmBooking = async (bookingId) => {
     setLoading(true);
     const result = await api.post('adminConfirmBooking', { adminSecret: ADMIN_SECRET, bookingId });
-    if (result.ok) {
-      alert('Заявка подтверждена');
-      await loadSlots();
-      await loadAllBookings();
-    } else {
-      alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-    }
+    if (result.ok) { showToast('Подтверждено', 'success'); await loadSlots(); await loadAllBookings(); }
     setLoading(false);
   };
 
-  // Reject booking (admin)
   const rejectBooking = async (bookingId) => {
     setLoading(true);
     const result = await api.post('adminRejectBooking', { adminSecret: ADMIN_SECRET, bookingId });
-    if (result.ok) {
-      alert('Заявка отклонена');
-      await loadSlots();
-      await loadAllBookings();
-    } else {
-      alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-    }
+    if (result.ok) { showToast('Отклонено', 'success'); await loadSlots(); await loadAllBookings(); }
     setLoading(false);
   };
 
-  // Helper functions
+  const approveCancellation = async (cancellationId) => {
+    setLoading(true);
+    const result = await api.post('adminApproveCancellation', { adminSecret: ADMIN_SECRET, cancellationId });
+    if (result.ok) { showToast('Отмена одобрена', 'success'); await loadSlots(); await loadAllBookings(); await loadCancellations(); }
+    setLoading(false);
+  };
+
+  const rejectCancellation = async (cancellationId) => {
+    setLoading(true);
+    const result = await api.post('adminRejectCancellation', { adminSecret: ADMIN_SECRET, cancellationId });
+    if (result.ok) { showToast('Отмена отклонена', 'success'); await loadCancellations(); await loadAllBookings(); }
+    setLoading(false);
+  };
+
+  // Helpers
   const getDaysInMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
+    const year = date.getFullYear(), month = date.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    return { daysInMonth, startingDayOfWeek: firstDay === 0 ? 6 : firstDay - 1 };
+    return { daysInMonth: new Date(year, month + 1, 0).getDate(), startingDayOfWeek: firstDay === 0 ? 6 : firstDay - 1 };
   };
 
-  const getAvailableDates = () => {
-    const dates = hockeySlots
-      .filter(s => s.status === 'available')
-      .map(s => s.date);
-    return [...new Set(dates)];
-  };
-
-  const getSlotsForDate = (dateStr) => {
-    return hockeySlots
-      .filter(s => s.date === dateStr && s.status === 'available')
-      .sort((a, b) => a.time.localeCompare(b.time));
-  };
-
+  const getAvailableDates = () => [...new Set(hockeySlots.filter(s => s.status === 'available').map(s => s.date))];
+  const getSlotsForDate = (dateStr) => hockeySlots.filter(s => s.date === dateStr && s.status === 'available').sort((a, b) => a.time.localeCompare(b.time));
+  
   const formatDate = (dateStr) => {
     const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+    return date.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
-  const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-  const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const dayNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const getTodayStr = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; };
 
-  const getTodayStr = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const getStatusBadge = (status) => {
+    const styles = { pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700', cancelled: 'bg-gray-100 text-gray-700', cancellation_requested: 'bg-orange-100 text-orange-700' };
+    const labels = { pending: '⏳ Ожидает', confirmed: '✅ Подтверждено', rejected: '❌ Отклонено', cancelled: '🚫 Отменено', cancellation_requested: '⚠️ Запрос отмены' };
+    return <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100'}`}>{labels[status] || status}</span>;
   };
+
+  const styles = `@keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}`;
 
   // ========== SELECT VIEW ==========
   if (view === 'select') {
     return (
-      <div className="min-h-screen bg-white p-4">
-        <div className="max-w-md mx-auto pt-12">
-          <div className="text-center mb-12">
-            <img src={BRAND_LOGO} alt="Logo" className="w-32 h-32 mx-auto mb-6 object-contain" />
-            <h1 className="text-4xl font-bold text-black">HOCKEY TRAINING</h1>
-            <p className="text-gray-600 mt-2">Система бронирования тренировок</p>
+      <>
+        <style>{styles}</style>
+        {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
+          <div className="max-w-md mx-auto pt-10">
+            <div className="text-center mb-10">
+              <img src={BRAND_LOGO} alt="Logo" className="w-24 h-24 mx-auto mb-4" />
+              <h1 className="text-3xl font-black">HOCKEY TRAINING</h1>
+              <p className="text-gray-500 text-sm mt-1">Персональные тренировки</p>
+            </div>
+            <button onClick={() => { loadSlots(); setView('client'); }} className="w-full bg-black text-white p-5 rounded-2xl mb-4 hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg">
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-2xl">🏒</span>
+                <div className="text-left">
+                  <h2 className="text-lg font-bold">Записаться</h2>
+                  <p className="text-gray-400 text-xs">Выберите время</p>
+                </div>
+              </div>
+            </button>
+            <div className="bg-white rounded-2xl p-4 border shadow-sm mb-6">
+              <div className="flex items-start gap-3">
+                <span className="text-xl">📍</span>
+                <div>
+                  <p className="font-semibold">Каток «Галактика»</p>
+                  <p className="text-gray-500 text-sm">г. Мытищи, ТЦ Июнь</p>
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setView('admin-login')} className="w-full text-gray-400 text-sm">Вход для тренера</button>
           </div>
-          <button
-            onClick={() => { loadSlots(); setView('client'); }}
-            className="w-full bg-black text-white p-6 rounded-2xl mb-4 hover:bg-gray-800 transition-all"
-          >
-            <h2 className="text-xl font-bold">🏒 Записаться на тренировку</h2>
-            <p className="text-gray-300 text-sm mt-1">Выберите удобное время</p>
-          </button>
-          <button
-            onClick={() => setView('admin-login')}
-            className="w-full text-gray-500 hover:text-black underline"
-          >
-            Вход для тренера
-          </button>
         </div>
-      </div>
+      </>
     );
   }
 
   // ========== ADMIN LOGIN ==========
   if (view === 'admin-login') {
     return (
-      <div className="min-h-screen bg-gray-100 p-4 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full border-2 border-black">
-          <img src={BRAND_LOGO} alt="Logo" className="w-16 h-16 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-center mb-4">Вход тренера</h2>
-          <input
-            type="password"
-            placeholder="Пароль"
-            value={adminPassword}
-            onChange={(e) => setAdminPassword(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
-            className="w-full p-3 border-2 rounded-lg mb-4"
-          />
-          <button onClick={handleAdminLogin} className="w-full bg-black text-white p-3 rounded-lg mb-2">
-            Войти
-          </button>
-          <button onClick={() => setView('select')} className="w-full text-gray-500">Назад</button>
+      <>
+        <style>{styles}</style>
+        {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+        <div className="min-h-screen bg-gray-100 p-4 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full">
+            <img src={BRAND_LOGO} alt="" className="w-16 h-16 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-center mb-6">Вход тренера</h2>
+            <input type="password" placeholder="Пароль" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} onKeyPress={e => e.key === 'Enter' && handleAdminLogin()} className="w-full p-4 border-2 rounded-xl mb-4 focus:border-black outline-none" />
+            <button onClick={handleAdminLogin} className="w-full bg-black text-white p-4 rounded-xl font-medium">Войти</button>
+            <button onClick={() => setView('select')} className="w-full text-gray-500 mt-4">Назад</button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
-  // ========== CLIENT BOOKING ==========
+  // ========== CLIENT VIEW ==========
   if (view === 'client') {
     const availableDates = getAvailableDates();
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(clientMonth);
     const today = getTodayStr();
 
-    // Success screen
     if (bookingSuccess) {
       return (
-        <div className="min-h-screen bg-gray-100 p-4 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center border-2 border-black">
-            <div className="text-6xl mb-4">✅</div>
-            <h2 className="text-2xl font-bold mb-4">Заявка отправлена!</h2>
-            <p className="text-gray-600 mb-6">Ожидайте подтверждения от тренера</p>
-            <div className="bg-gray-100 p-4 rounded-xl mb-6 text-left">
-              <p className="text-sm text-gray-500 mb-1">📍 Место проведения:</p>
-              <p className="font-bold">Каток «Галактика»</p>
-              <p className="text-gray-600">г. Мытищи, ТЦ Июнь</p>
+        <>
+          <style>{styles}</style>
+          <div className="min-h-screen bg-gradient-to-b from-green-50 to-white p-4 flex items-center justify-center">
+            <div className="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full text-center">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle className="w-10 h-10 text-green-500" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Заявка отправлена!</h2>
+              <p className="text-gray-500 mb-6">Ожидайте подтверждения</p>
+              <div className="bg-gray-50 p-4 rounded-xl mb-6 text-left">
+                <p className="text-xs text-gray-400 mb-1">📍 Место</p>
+                <p className="font-semibold">Каток «Галактика»</p>
+                <p className="text-gray-500 text-sm">г. Мытищи</p>
+              </div>
+              <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-blue-500 text-white p-4 rounded-xl mb-3">✈️ Написать тренеру</a>
+              <button onClick={() => { setBookingSuccess(false); loadSlots(); }} className="w-full bg-black text-white p-4 rounded-xl">Записаться ещё</button>
             </div>
-            <a
-              href={`https://t.me/${TRAINER_TELEGRAM}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full bg-blue-500 text-white p-3 rounded-lg mb-3"
-            >
-              ✈️ Написать тренеру
-            </a>
-            <button onClick={() => { setBookingSuccess(false); loadSlots(); }} className="w-full bg-black text-white p-3 rounded-lg">
-              Записаться ещё
-            </button>
           </div>
-        </div>
+        </>
       );
     }
 
-    // My bookings
     if (showMyBookings) {
       return (
-        <div className="min-h-screen bg-gray-100 p-4">
-          <div className="max-w-2xl mx-auto">
-            <button onClick={() => setShowMyBookings(false)} className="flex items-center gap-2 text-gray-600 mb-6">
-              <ArrowLeft size={20} /> Назад
-            </button>
-            <h2 className="text-2xl font-bold mb-4">📋 Мои записи</h2>
-            <div className="mb-4">
-              <input
-                type="tel"
-                placeholder="Введите ваш телефон"
-                value={myBookingsPhone}
-                onChange={(e) => setMyBookingsPhone(e.target.value)}
-                className="w-full p-3 border-2 rounded-lg"
-              />
-              <button 
-                onClick={() => loadBookingsByPhone(myBookingsPhone)}
-                disabled={loading || !myBookingsPhone}
-                className="w-full bg-black text-white p-3 rounded-lg mt-2 disabled:opacity-50"
-              >
-                {loading ? 'Поиск...' : 'Найти мои записи'}
-              </button>
+        <>
+          <style>{styles}</style>
+          {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+          <Modal isOpen={cancelModal.open} onClose={() => setCancelModal({ open: false, booking: null })} title="Отмена записи">
+            <p className="text-gray-600 mb-4">Вы уверены?</p>
+            <textarea placeholder="Причина (необязательно)" value={cancelReason} onChange={e => setCancelReason(e.target.value)} className="w-full p-3 border-2 rounded-xl mb-4 outline-none" rows={3} />
+            <div className="flex gap-3">
+              <button onClick={() => setCancelModal({ open: false, booking: null })} className="flex-1 p-3 border-2 rounded-xl">Отмена</button>
+              <button onClick={requestCancellation} disabled={loading} className="flex-1 p-3 bg-red-500 text-white rounded-xl disabled:opacity-50">{loading ? '...' : 'Отменить'}</button>
             </div>
-            
-            {hockeyBookings.length > 0 ? (
-              <div className="space-y-3">
-                {hockeyBookings.map(booking => (
-                  <div key={booking.id} className={`bg-white p-4 rounded-xl border-2 ${
-                    booking.status === 'confirmed' ? 'border-green-400' :
-                    booking.status === 'pending' ? 'border-yellow-400' :
-                    booking.status === 'rejected' ? 'border-red-400' : 'border-gray-200'
-                  }`}>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold text-lg">{booking.name}</p>
-                        <p className="text-gray-600">{booking.slotIds?.replace(/,/g, ', ')}</p>
-                        {booking.comment && <p className="text-gray-500 text-sm mt-1">💬 {booking.comment}</p>}
+          </Modal>
+          <div className="min-h-screen bg-gray-50 p-4">
+            <div className="max-w-lg mx-auto">
+              <button onClick={() => setShowMyBookings(false)} className="flex items-center gap-2 text-gray-600 mb-6"><ArrowLeft size={20} /> Назад</button>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center"><History className="text-white" size={24} /></div>
+                <div><h2 className="text-xl font-bold">Мои записи</h2><p className="text-gray-500 text-sm">История</p></div>
+              </div>
+              <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
+                <input type="tel" placeholder="Ваш телефон" value={myBookingsPhone} onChange={e => setMyBookingsPhone(e.target.value)} className="w-full p-3 border-2 rounded-xl mb-3 outline-none" />
+                <button onClick={() => loadBookingsByPhone(myBookingsPhone)} disabled={loading || !myBookingsPhone} className="w-full bg-black text-white p-3 rounded-xl disabled:opacity-50">{loading ? '...' : 'Найти'}</button>
+              </div>
+              {loading ? <Spinner /> : (
+                <div className="space-y-3">
+                  {hockeyBookings.map(b => (
+                    <div key={b.id} className={`bg-white p-4 rounded-2xl shadow-sm border-l-4 ${b.status === 'confirmed' ? 'border-l-green-500' : b.status === 'pending' ? 'border-l-yellow-500' : b.status === 'cancellation_requested' ? 'border-l-orange-500' : 'border-l-gray-300'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="font-bold">{b.name}</p>
+                        {getStatusBadge(b.status)}
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        booking.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                        booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                        booking.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {booking.status === 'confirmed' ? '✅ Подтверждено' :
-                         booking.status === 'pending' ? '⏳ Ожидает' :
-                         booking.status === 'rejected' ? '❌ Отклонено' : booking.status}
-                      </span>
+                      <p className="text-gray-600 text-sm">📅 {b.slotIds}</p>
+                      {b.comment && <p className="text-gray-500 text-sm">💬 {b.comment}</p>}
+                      {(b.status === 'confirmed' || b.status === 'pending') && (
+                        <button onClick={() => setCancelModal({ open: true, booking: b })} className="mt-2 text-red-500 text-sm flex items-center gap-1"><XCircle size={16} /> Отменить</button>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white p-8 rounded-xl text-center">
-                <p className="text-gray-500">Введите телефон и нажмите "Найти"</p>
-              </div>
-            )}
+                  ))}
+                  {hockeyBookings.length === 0 && <div className="bg-white p-8 rounded-2xl text-center text-gray-500">Введите телефон</div>}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       );
     }
 
-    // Main booking view
     return (
-      <div className="min-h-screen bg-gray-100 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-4">
-            <button onClick={() => setView('select')} className="flex items-center gap-2 text-gray-600">
-              <ArrowLeft size={20} /> Выход
-            </button>
-            <button onClick={() => setShowMyBookings(true)} className="bg-white px-4 py-2 rounded-lg border">
-              📋 Мои записи
-            </button>
+      <>
+        <style>{styles}</style>
+        {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+        <div className="min-h-screen bg-gray-50 pb-32">
+          <div className="bg-white border-b sticky top-0 z-10">
+            <div className="max-w-lg mx-auto p-4 flex justify-between items-center">
+              <button onClick={() => setView('select')} className="text-gray-600"><ArrowLeft size={20} /></button>
+              <img src={BRAND_LOGO} alt="" className="w-8 h-8" />
+              <button onClick={() => setShowMyBookings(true)} className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-2 rounded-full"><History size={16} /> Записи</button>
+            </div>
           </div>
-
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
-              <button onClick={loadSlots} className="ml-4 underline">Повторить</button>
-            </div>
-          )}
-
-          {loading && (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
-              <p className="mt-2 text-gray-600">Загрузка...</p>
-            </div>
-          )}
-
-          {!loading && (
-            <>
-              <div className="text-center mb-6">
-                <img src={BRAND_LOGO} alt="Logo" className="w-12 h-12 mx-auto mb-2" />
-                <h1 className="text-2xl font-bold">Выберите дату и время</h1>
-                <p className="text-sm text-gray-500">Зелёные даты — есть свободные места</p>
-              </div>
-
-              {/* Calendar */}
-              <div className="bg-white p-6 rounded-2xl border-2 border-black mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <button onClick={() => setClientMonth(new Date(clientMonth.getFullYear(), clientMonth.getMonth() - 1))} className="p-2">
-                    <ChevronLeft />
-                  </button>
-                  <h3 className="font-bold">{monthNames[clientMonth.getMonth()]} {clientMonth.getFullYear()}</h3>
-                  <button onClick={() => setClientMonth(new Date(clientMonth.getFullYear(), clientMonth.getMonth() + 1))} className="p-2">
-                    <ChevronRight />
-                  </button>
+          <div className="max-w-lg mx-auto p-4">
+            {loading ? <Spinner /> : (
+              <>
+                <div className="text-center mb-6">
+                  <h1 className="text-xl font-bold">Выберите дату</h1>
+                  <p className="text-gray-500 text-sm">Зелёные — есть места</p>
                 </div>
-                <div className="grid grid-cols-7 gap-1 mb-2">
-                  {dayNames.map(d => <div key={d} className="text-center text-xs text-gray-500 py-1">{d}</div>)}
-                </div>
-                <div className="grid grid-cols-7 gap-1">
-                  {[...Array(startingDayOfWeek)].map((_, i) => <div key={`empty-${i}`} />)}
-                  {[...Array(daysInMonth)].map((_, i) => {
-                    const day = i + 1;
-                    const dateStr = `${clientMonth.getFullYear()}-${String(clientMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const isAvailable = availableDates.includes(dateStr);
-                    const isPast = dateStr < today;
-                    const isSelected = clientSelectedDate === dateStr;
-
-                    return (
-                      <button
-                        key={day}
-                        onClick={() => !isPast && isAvailable && setClientSelectedDate(dateStr)}
-                        disabled={isPast || !isAvailable}
-                        className={`p-2 rounded-lg text-sm transition-all ${
-                          isSelected ? 'bg-black text-white' :
-                          isAvailable ? 'bg-green-100 hover:bg-green-200 text-green-800 font-bold' :
-                          isPast ? 'text-gray-300' : 'text-gray-400'
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Time slots */}
-              {clientSelectedDate && (
-                <div className="bg-white p-6 rounded-2xl border-2 border-black mb-6">
-                  <h3 className="font-bold mb-4">🕐 {formatDate(clientSelectedDate)}</h3>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {getSlotsForDate(clientSelectedDate).map(slot => (
-                      <button
-                        key={slot.id}
-                        onClick={() => setSelectedSlots(prev => 
-                          prev.includes(slot.id) ? prev.filter(id => id !== slot.id) : [...prev, slot.id]
-                        )}
-                        className={`p-3 rounded-lg border-2 transition-all ${
-                          selectedSlots.includes(slot.id) ? 'bg-black text-white border-black' : 'hover:border-black'
-                        }`}
-                      >
-                        {slot.time}
-                      </button>
-                    ))}
+                <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <button onClick={() => setClientMonth(new Date(clientMonth.getFullYear(), clientMonth.getMonth() - 1))} className="p-2"><ChevronLeft size={20} /></button>
+                    <h3 className="font-bold">{monthNames[clientMonth.getMonth()]} {clientMonth.getFullYear()}</h3>
+                    <button onClick={() => setClientMonth(new Date(clientMonth.getFullYear(), clientMonth.getMonth() + 1))} className="p-2"><ChevronRight size={20} /></button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {dayNames.map(d => <div key={d} className="text-center text-xs text-gray-400 py-1">{d}</div>)}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {[...Array(startingDayOfWeek)].map((_, i) => <div key={`e-${i}`} />)}
+                    {[...Array(daysInMonth)].map((_, i) => {
+                      const day = i + 1;
+                      const dateStr = `${clientMonth.getFullYear()}-${String(clientMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const isAvailable = availableDates.includes(dateStr);
+                      const isPast = dateStr < today;
+                      const isSelected = clientSelectedDate === dateStr;
+                      return (
+                        <button key={day} onClick={() => !isPast && isAvailable && setClientSelectedDate(dateStr)} disabled={isPast || !isAvailable}
+                          className={`aspect-square rounded-xl text-sm font-medium transition-all ${isSelected ? 'bg-black text-white scale-110' : isAvailable ? 'bg-green-100 text-green-700' : isPast ? 'text-gray-300' : 'text-gray-400'}`}>
+                          {day}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
-
-              {/* Booking form */}
-              {selectedSlots.length > 0 && (
-                <div className="bg-white p-6 rounded-2xl border-2 border-black">
-                  <h3 className="font-bold mb-4">📝 Ваши данные</h3>
-                  <div className="space-y-4">
-                    <input
-                      type="text"
-                      placeholder="ФИО *"
-                      value={clientForm.name}
-                      onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })}
-                      className="w-full p-3 border-2 rounded-lg"
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Телефон *"
-                      value={clientForm.phone}
-                      onChange={(e) => setClientForm({ ...clientForm, phone: e.target.value })}
-                      className="w-full p-3 border-2 rounded-lg"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Telegram @username (необязательно)"
-                      value={clientForm.telegram}
-                      onChange={(e) => setClientForm({ ...clientForm, telegram: e.target.value.replace('@', '') })}
-                      className="w-full p-3 border-2 rounded-lg"
-                    />
-                    <textarea
-                      placeholder="Комментарий (необязательно)"
-                      value={clientForm.comment}
-                      onChange={(e) => setClientForm({ ...clientForm, comment: e.target.value })}
-                      className="w-full p-3 border-2 rounded-lg"
-                      rows={2}
-                    />
-                    <button
-                      onClick={submitBooking}
-                      disabled={loading}
-                      className="w-full bg-black text-white p-4 rounded-xl font-bold hover:bg-gray-800 disabled:opacity-50"
-                    >
-                      {loading ? 'Отправка...' : `Записаться (${selectedSlots.length} занятий)`}
-                    </button>
+                {clientSelectedDate && (
+                  <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
+                    <h3 className="font-bold mb-3">{formatDate(clientSelectedDate)}</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {getSlotsForDate(clientSelectedDate).map(slot => (
+                        <button key={slot.id} onClick={() => setSelectedSlots(p => p.includes(slot.id) ? p.filter(id => id !== slot.id) : [...p, slot.id])}
+                          className={`p-3 rounded-xl text-sm font-medium transition-all ${selectedSlots.includes(slot.id) ? 'bg-black text-white' : 'bg-gray-100'}`}>
+                          {slot.time}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                )}
+                {availableDates.length === 0 && (
+                  <div className="bg-white p-8 rounded-2xl text-center">
+                    <Calendar className="mx-auto text-gray-400 mb-4" size={32} />
+                    <p className="text-gray-500">Нет слотов</p>
+                    <button onClick={loadSlots} className="text-blue-500 mt-2">Обновить</button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          {selectedSlots.length > 0 && (
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl p-4">
+              <div className="max-w-lg mx-auto">
+                <div className="flex gap-2 mb-3">
+                  <input type="text" placeholder="Имя *" value={clientForm.name} onChange={e => setClientForm({ ...clientForm, name: e.target.value })} className="flex-1 p-3 border-2 rounded-xl text-sm outline-none" />
+                  <input type="tel" placeholder="Телефон *" value={clientForm.phone} onChange={e => setClientForm({ ...clientForm, phone: e.target.value })} className="flex-1 p-3 border-2 rounded-xl text-sm outline-none" />
                 </div>
-              )}
-
-              {availableDates.length === 0 && !loading && (
-                <div className="bg-white p-8 rounded-2xl text-center border">
-                  <p className="text-gray-500 mb-4">Нет доступных слотов для записи.</p>
-                  <button onClick={loadSlots} className="text-blue-500 underline">Обновить</button>
-                </div>
-              )}
-            </>
+                <button onClick={submitBooking} disabled={loading || !clientForm.name || !clientForm.phone} className="w-full bg-black text-white p-4 rounded-xl font-bold disabled:opacity-50">
+                  {loading ? '...' : `Записаться • ${selectedSlots.length}`}
+                </button>
+              </div>
+            </div>
           )}
         </div>
-      </div>
+      </>
     );
   }
 
-  // ========== ADMIN DASHBOARD ==========
+  // ========== ADMIN VIEW ==========
   if (isAdminAuth && view === 'admin') {
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentMonth);
     const today = getTodayStr();
-
     const pendingSlots = hockeySlots.filter(s => s.status === 'pending');
     const confirmedSlots = hockeySlots.filter(s => s.status === 'booked');
     const availableSlots = hockeySlots.filter(s => s.status === 'available');
+    const pendingCancellations = cancellations.filter(c => c.status === 'pending');
 
-    // Group pending by bookingId
     const pendingBookings = {};
     pendingSlots.forEach(slot => {
       if (slot.bookingId) {
-        if (!pendingBookings[slot.bookingId]) {
-          pendingBookings[slot.bookingId] = { slots: [], bookingId: slot.bookingId };
-        }
+        if (!pendingBookings[slot.bookingId]) pendingBookings[slot.bookingId] = { slots: [], bookingId: slot.bookingId };
         pendingBookings[slot.bookingId].slots.push(slot);
       }
     });
-
-    // Find booking details
-    const getBookingDetails = (bookingId) => {
-      return allBookings.find(b => b.id === bookingId) || {};
-    };
+    const getBookingDetails = (id) => allBookings.find(b => b.id === id) || {};
 
     return (
-      <div className="min-h-screen bg-gray-100 p-4">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl border-2 border-black">
-            <div className="flex items-center gap-4">
-              <img src={BRAND_LOGO} alt="Logo" className="w-10 h-10" />
-              <h1 className="text-xl font-bold">Панель тренера</h1>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => { loadSlots(); loadAllBookings(); }} disabled={loading} className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 disabled:opacity-50">
-                🔄 {loading ? '...' : 'Обновить'}
-              </button>
-              <button onClick={() => { setIsAdminAuth(false); setView('select'); }} className="bg-black text-white px-4 py-2 rounded-lg">
-                Выход
-              </button>
-            </div>
-          </div>
-
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
-            </div>
-          )}
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-xl border text-center">
-              <div className="text-3xl font-bold">{availableSlots.length}</div>
-              <div className="text-gray-500">Свободных слотов</div>
-            </div>
-            <div className="bg-yellow-100 p-4 rounded-xl border border-yellow-400 text-center">
-              <div className="text-3xl font-bold text-yellow-700">{Object.keys(pendingBookings).length}</div>
-              <div className="text-yellow-700">Ожидают подтверждения</div>
-            </div>
-            <div className="bg-green-100 p-4 rounded-xl border border-green-400 text-center">
-              <div className="text-3xl font-bold text-green-700">{confirmedSlots.length}</div>
-              <div className="text-green-700">Подтверждённых</div>
+      <>
+        <style>{styles}</style>
+        {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+        <div className="min-h-screen bg-gray-50 pb-8">
+          <div className="bg-white border-b sticky top-0 z-10">
+            <div className="max-w-4xl mx-auto p-4 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <img src={BRAND_LOGO} alt="" className="w-10 h-10" />
+                <span className="font-bold">Панель тренера</span>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { loadSlots(); loadAllBookings(); loadCancellations(); }} disabled={loading} className="p-2 bg-gray-100 rounded-xl disabled:opacity-50">🔄</button>
+                <button onClick={() => { setIsAdminAuth(false); setView('select'); }} className="px-4 py-2 bg-black text-white rounded-xl text-sm">Выход</button>
+              </div>
             </div>
           </div>
+          <div className="max-w-4xl mx-auto p-4">
+            {/* Stats */}
+            <div className="grid grid-cols-4 gap-3 mb-6">
+              <div className="bg-white p-4 rounded-2xl text-center shadow-sm"><div className="text-2xl font-bold">{availableSlots.length}</div><div className="text-xs text-gray-500">Свободных</div></div>
+              <div className="bg-yellow-50 p-4 rounded-2xl text-center border border-yellow-200"><div className="text-2xl font-bold text-yellow-600">{Object.keys(pendingBookings).length}</div><div className="text-xs text-yellow-600">Заявок</div></div>
+              <div className="bg-green-50 p-4 rounded-2xl text-center border border-green-200"><div className="text-2xl font-bold text-green-600">{confirmedSlots.length}</div><div className="text-xs text-green-600">Подтверждено</div></div>
+              <div className="bg-orange-50 p-4 rounded-2xl text-center border border-orange-200"><div className="text-2xl font-bold text-orange-600">{pendingCancellations.length}</div><div className="text-xs text-orange-600">Отмен</div></div>
+            </div>
 
-          {/* Pending bookings */}
-          {Object.keys(pendingBookings).length > 0 && (
-            <div className="bg-yellow-50 p-6 rounded-2xl border-2 border-yellow-400 mb-6">
-              <h2 className="text-xl font-bold mb-4">⏳ Новые заявки ({Object.keys(pendingBookings).length})</h2>
-              <div className="space-y-4">
-                {Object.entries(pendingBookings).map(([bookingId, booking]) => {
-                  const details = getBookingDetails(bookingId);
+            {/* Cancellations */}
+            {pendingCancellations.length > 0 && (
+              <div className="bg-orange-50 p-4 rounded-2xl border border-orange-200 mb-6">
+                <h2 className="font-bold text-orange-700 mb-4 flex items-center gap-2"><AlertCircle size={20} /> Запросы на отмену</h2>
+                {pendingCancellations.map(c => {
+                  const b = allBookings.find(x => x.id === c.bookingId);
                   return (
-                    <div key={bookingId} className="bg-white p-4 rounded-xl border">
-                      <div className="flex justify-between items-start flex-wrap gap-4">
+                    <div key={c.id} className="bg-white p-4 rounded-xl mb-2">
+                      <div className="flex justify-between flex-wrap gap-3">
                         <div>
-                          <p className="font-bold text-lg">{details.name || 'Без имени'}</p>
-                          <p className="text-gray-600">📞 {details.phone || 'Нет телефона'}</p>
-                          {details.telegram && <p className="text-gray-600">✈️ @{details.telegram}</p>}
-                          <p className="text-gray-500 mt-2">
-                            🕐 {booking.slots.map(s => `${s.date} ${s.time}`).join(', ')}
-                          </p>
-                          {details.comment && <p className="text-gray-500 mt-1">💬 {details.comment}</p>}
+                          <p className="font-bold">{b?.name}</p>
+                          <p className="text-sm text-gray-600">📞 {c.phone}</p>
+                          {c.reason && <p className="text-sm text-gray-500">💬 {c.reason}</p>}
                         </div>
                         <div className="flex gap-2">
-                          {details.phone && (
-                            <a href={`tel:${details.phone}`} className="bg-blue-500 text-white px-3 py-2 rounded-lg">
-                              📞
-                            </a>
-                          )}
-                          {details.telegram && (
-                            <a href={`https://t.me/${details.telegram}`} target="_blank" rel="noopener noreferrer" className="bg-blue-400 text-white px-3 py-2 rounded-lg">
-                              ✈️
-                            </a>
-                          )}
-                          <button
-                            onClick={() => confirmBooking(bookingId)}
-                            disabled={loading}
-                            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50"
-                          >
-                            ✅ Подтвердить
-                          </button>
-                          <button
-                            onClick={() => rejectBooking(bookingId)}
-                            disabled={loading}
-                            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 disabled:opacity-50"
-                          >
-                            ❌ Отклонить
-                          </button>
+                          <button onClick={() => approveCancellation(c.id)} disabled={loading} className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅</button>
+                          <button onClick={() => rejectCancellation(c.id)} disabled={loading} className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌</button>
                         </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Add slots */}
-          <div className="bg-white p-6 rounded-2xl border-2 border-black mb-6">
-            <h2 className="text-xl font-bold mb-4">➕ Добавить слоты</h2>
-            
-            <div className="mb-4">
+            {/* Pending */}
+            {Object.keys(pendingBookings).length > 0 && (
+              <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200 mb-6">
+                <h2 className="font-bold text-yellow-700 mb-4">⏳ Новые заявки</h2>
+                {Object.entries(pendingBookings).map(([id, booking]) => {
+                  const d = getBookingDetails(id);
+                  return (
+                    <div key={id} className="bg-white p-4 rounded-xl mb-2">
+                      <div className="flex justify-between flex-wrap gap-3">
+                        <div>
+                          <p className="font-bold">{d.name || '—'}</p>
+                          <p className="text-sm text-gray-600">📞 {d.phone}</p>
+                          {d.telegram && <p className="text-sm text-gray-600">✈️ @{d.telegram}</p>}
+                          <p className="text-sm text-gray-500">🕐 {booking.slots.map(s => `${s.date} ${s.time}`).join(', ')}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          {d.phone && <a href={`tel:${d.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={20} /></a>}
+                          <button onClick={() => confirmBooking(id)} disabled={loading} className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅</button>
+                          <button onClick={() => rejectBooking(id)} disabled={loading} className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Add Slots */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
+              <h2 className="font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Добавить слоты</h2>
               <div className="flex justify-between items-center mb-4">
-                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} className="p-2">
-                  <ChevronLeft />
-                </button>
-                <h3 className="font-bold">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</h3>
-                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} className="p-2">
-                  <ChevronRight />
-                </button>
+                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} className="p-2"><ChevronLeft size={20} /></button>
+                <h3 className="font-medium">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</h3>
+                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} className="p-2"><ChevronRight size={20} /></button>
               </div>
               <div className="grid grid-cols-7 gap-1 mb-2">
-                {dayNames.map(d => <div key={d} className="text-center text-xs text-gray-500 py-1">{d}</div>)}
+                {dayNames.map(d => <div key={d} className="text-center text-xs text-gray-400 py-1">{d}</div>)}
               </div>
-              <div className="grid grid-cols-7 gap-1">
-                {[...Array(startingDayOfWeek)].map((_, i) => <div key={`empty-${i}`} />)}
+              <div className="grid grid-cols-7 gap-1 mb-4">
+                {[...Array(startingDayOfWeek)].map((_, i) => <div key={`e-${i}`} />)}
                 {[...Array(daysInMonth)].map((_, i) => {
                   const day = i + 1;
                   const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                   const isPast = dateStr < today;
                   const isSelected = selectedDates.includes(dateStr);
                   const hasSlots = hockeySlots.some(s => s.date === dateStr);
-
                   return (
-                    <button
-                      key={day}
-                      onClick={() => !isPast && setSelectedDates(prev => 
-                        prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
-                      )}
-                      disabled={isPast}
-                      className={`p-2 rounded-lg text-sm transition-all ${
-                        isSelected ? 'bg-black text-white' :
-                        hasSlots ? 'bg-green-100 text-green-800' :
-                        isPast ? 'text-gray-300' : 'hover:bg-gray-100'
-                      }`}
-                    >
+                    <button key={day} onClick={() => !isPast && setSelectedDates(p => p.includes(dateStr) ? p.filter(d => d !== dateStr) : [...p, dateStr])} disabled={isPast}
+                      className={`aspect-square rounded-lg text-sm ${isSelected ? 'bg-black text-white' : hasSlots ? 'bg-green-100 text-green-700' : isPast ? 'text-gray-300' : 'hover:bg-gray-100'}`}>
                       {day}
                     </button>
                   );
                 })}
               </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">Шаблон времени:</label>
-              <select
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(e.target.value)}
-                className="w-full p-3 border-2 rounded-lg"
-              >
-                {Object.entries(timeTemplates).map(([key, template]) => (
-                  <option key={key} value={key}>{template.name}</option>
+              <div className="flex gap-2 mb-4">
+                {Object.entries(timeTemplates).map(([k, t]) => (
+                  <button key={k} onClick={() => setSelectedTemplate(k)} className={`flex-1 p-2 rounded-lg text-xs ${selectedTemplate === k ? 'bg-black text-white' : 'bg-gray-100'}`}>{t.name}</button>
                 ))}
-              </select>
+              </div>
+              {selectedDates.length > 0 && <div className="bg-gray-50 p-3 rounded-xl mb-4 text-sm">📅 {selectedDates.length} дат • 🕐 {selectedDates.length * timeTemplates[selectedTemplate].times.length} слотов</div>}
+              <button onClick={addSlotsFromCalendar} disabled={selectedDates.length === 0 || loading} className="w-full bg-black text-white p-3 rounded-xl disabled:opacity-50">{loading ? '...' : 'Добавить'}</button>
             </div>
 
-            {selectedDates.length > 0 && (
-              <div className="mb-4 p-3 bg-gray-100 rounded-lg">
-                <p className="text-sm">📅 Дат: <strong>{selectedDates.length}</strong> | 🕐 Слотов: <strong>{selectedDates.length * timeTemplates[selectedTemplate].times.length}</strong></p>
-              </div>
-            )}
-
-            <button
-              onClick={addSlotsFromCalendar}
-              disabled={selectedDates.length === 0 || loading}
-              className="w-full bg-black text-white p-3 rounded-lg hover:bg-gray-800 disabled:opacity-50"
-            >
-              {loading ? 'Добавление...' : 'Добавить слоты'}
-            </button>
-          </div>
-
-          {/* Slots list with delete */}
-          <div className="bg-white p-6 rounded-2xl border">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">📅 Все слоты ({hockeySlots.length})</h2>
-              <div className="flex gap-2">
+            {/* Delete Slots */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold">📅 Слоты ({availableSlots.length})</h2>
                 {showDeleteMode ? (
-                  <>
-                    <button
-                      onClick={deleteSelectedSlots}
-                      disabled={slotsToDelete.length === 0 || loading}
-                      className="bg-red-500 text-white px-4 py-2 rounded-lg disabled:opacity-50"
-                    >
-                      🗑 Удалить ({slotsToDelete.length})
-                    </button>
-                    <button
-                      onClick={() => { setShowDeleteMode(false); setSlotsToDelete([]); }}
-                      className="bg-gray-300 px-4 py-2 rounded-lg"
-                    >
-                      Отмена
-                    </button>
-                  </>
+                  <div className="flex gap-2">
+                    <button onClick={deleteSelectedSlots} disabled={slotsToDelete.length === 0 || loading} className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">🗑 ({slotsToDelete.length})</button>
+                    <button onClick={() => { setShowDeleteMode(false); setSlotsToDelete([]); }} className="px-3 py-1 bg-gray-200 rounded-lg text-sm">✕</button>
+                  </div>
                 ) : (
-                  <button
-                    onClick={() => setShowDeleteMode(true)}
-                    className="bg-red-100 text-red-600 px-4 py-2 rounded-lg hover:bg-red-200"
-                  >
-                    🗑 Режим удаления
-                  </button>
+                  <button onClick={() => setShowDeleteMode(true)} className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm">🗑</button>
+                )}
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {availableSlots.length === 0 ? <p className="text-gray-500 text-center py-4">Нет слотов</p> : (
+                  availableSlots.sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).map(s => (
+                    <div key={s.id} onClick={() => showDeleteMode && setSlotsToDelete(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
+                      className={`p-3 rounded-xl flex justify-between items-center cursor-pointer ${slotsToDelete.includes(s.id) ? 'bg-red-100 border border-red-300' : 'bg-gray-50'}`}>
+                      <span className="font-medium">{s.date} {s.time}</span>
+                      {showDeleteMode && <span className={slotsToDelete.includes(s.id) ? 'text-red-600' : 'text-gray-400'}>{slotsToDelete.includes(s.id) ? '✓' : '○'}</span>}
+                    </div>
+                  ))
                 )}
               </div>
             </div>
-            
-            <div className="max-h-96 overflow-y-auto">
-              {availableSlots.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">Свободных слотов нет</p>
-              ) : (
-                <div className="space-y-2">
-                  {availableSlots.sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).map(slot => (
-                    <div 
-                      key={slot.id} 
-                      onClick={() => showDeleteMode && setSlotsToDelete(prev => 
-                        prev.includes(slot.id) ? prev.filter(id => id !== slot.id) : [...prev, slot.id]
-                      )}
-                      className={`flex justify-between items-center p-3 rounded border cursor-pointer transition-all ${
-                        slotsToDelete.includes(slot.id) ? 'bg-red-100 border-red-400' :
-                        showDeleteMode ? 'hover:bg-red-50' : 'bg-green-50 border-green-200'
-                      }`}
-                    >
-                      <span className="font-medium">{slot.date} в {slot.time}</span>
-                      {showDeleteMode && (
-                        <span className={`text-sm ${slotsToDelete.includes(slot.id) ? 'text-red-600' : 'text-gray-400'}`}>
-                          {slotsToDelete.includes(slot.id) ? '✓ Выбран' : 'Нажмите для выбора'}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
