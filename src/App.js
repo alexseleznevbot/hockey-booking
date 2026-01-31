@@ -266,12 +266,20 @@ const BookingSystem = () => {
   // Admin cancel confirmed booking (force-majeure)
   const adminCancelBooking = async () => {
     if (!adminCancelModal.booking) return;
+    
+    const bookingId = String(adminCancelModal.booking.id).trim();
+    if (!bookingId) {
+      showToast('Ошибка: ID записи не найден', 'error');
+      return;
+    }
+    
     setLoading(true);
     const result = await api.post('adminCancelBooking', { 
       adminSecret: ADMIN_SECRET, 
-      bookingId: adminCancelModal.booking.id,
+      bookingId: bookingId,
       reason: adminCancelReason
     });
+    
     if (result.ok) { 
       showToast('Запись отменена. Уведомление отправлено.', 'success'); 
       setAdminCancelModal({ open: false, booking: null });
@@ -279,7 +287,7 @@ const BookingSystem = () => {
       await loadSlots(); 
       await loadAllBookings(); 
     } else {
-      showToast('Ошибка: ' + result.error, 'error');
+      showToast('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
     }
     setLoading(false);
   };
