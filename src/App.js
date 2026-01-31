@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbyksjcEnphPNFKjZDOs6tE4RIfsIIsiXXnzcM7V9HEcnO0SY4dvpcb9TabRnVTEkSDGRg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
-// Brand Logo
 // Hockey puck logo (simple SVG as data URI)
 const BRAND_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cellipse cx='50' cy='50' rx='45' ry='25' fill='%23111'/%3E%3Cellipse cx='50' cy='45' rx='45' ry='25' fill='%23333'/%3E%3Cellipse cx='50' cy='45' rx='35' ry='18' fill='none' stroke='%23555' stroke-width='2'/%3E%3C/svg%3E";
 
@@ -108,6 +107,10 @@ const BookingSystem = () => {
   const [showDeleteMode, setShowDeleteMode] = useState(false);
   const [cancelModal, setCancelModal] = useState({ open: false, booking: null });
   const [cancelReason, setCancelReason] = useState('');
+
+  // Admin tabs and filters
+  const [adminTab, setAdminTab] = useState('main'); // 'main' or 'history'
+  const [historyFilter, setHistoryFilter] = useState('all'); // 'all', 'pending', 'confirmed', 'cancelled', 'rejected'
 
   const timeTemplates = {
     full: { name: 'Весь день', times: ['09:00','10:15','11:30','12:45','14:00','15:15','16:30','17:45','19:00','20:15','21:30'] },
@@ -267,8 +270,26 @@ const BookingSystem = () => {
   const getSlotsForDate = (dateStr) => hockeySlots.filter(s => s.date === dateStr && s.status === 'available').sort((a, b) => a.time.localeCompare(b.time));
   
   const formatDate = (dateStr) => {
+    if (!dateStr) return '';
     const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const parseSlotIds = (slotIds) => {
+    if (!slotIds) return [];
+    return String(slotIds).split(',').map(id => {
+      const parts = id.trim().split('-');
+      if (parts.length >= 4) {
+        return { date: `${parts[0]}-${parts[1]}-${parts[2]}`, time: parts[3] };
+      }
+      return { date: '', time: '' };
+    });
   };
 
   const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
@@ -276,8 +297,20 @@ const BookingSystem = () => {
   const getTodayStr = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; };
 
   const getStatusBadge = (status) => {
-    const styles = { pending: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-green-100 text-green-700', rejected: 'bg-red-100 text-red-700', cancelled: 'bg-gray-100 text-gray-700', cancellation_requested: 'bg-orange-100 text-orange-700' };
-    const labels = { pending: '⏳ Ожидает', confirmed: '✅ Подтверждено', rejected: '❌ Отклонено', cancelled: '🚫 Отменено', cancellation_requested: '⚠️ Запрос отмены' };
+    const styles = { 
+      pending: 'bg-yellow-100 text-yellow-700', 
+      confirmed: 'bg-green-100 text-green-700', 
+      rejected: 'bg-red-100 text-red-700', 
+      cancelled: 'bg-gray-100 text-gray-700', 
+      cancellation_requested: 'bg-orange-100 text-orange-700' 
+    };
+    const labels = { 
+      pending: '⏳ Ожидает', 
+      confirmed: '✅ Подтверждено', 
+      rejected: '❌ Отклонено', 
+      cancelled: '🚫 Отменено', 
+      cancellation_requested: '⚠️ Запрос отмены' 
+    };
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100'}`}>{labels[status] || status}</span>;
   };
 
@@ -522,11 +555,19 @@ const BookingSystem = () => {
     });
     const getBookingDetails = (id) => allBookings.find(b => b.id === id) || {};
 
+    // Filter bookings for history
+    const filteredBookings = allBookings.filter(b => {
+      if (historyFilter === 'all') return true;
+      if (historyFilter === 'cancellation_requested') return b.status === 'cancellation_requested';
+      return b.status === historyFilter;
+    }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
     return (
       <>
         <style>{styles}</style>
         {toast && <Toast {...toast} onClose={() => setToast(null)} />}
         <div className="min-h-screen bg-gray-50 pb-8">
+          {/* Header */}
           <div className="bg-white border-b sticky top-0 z-10">
             <div className="max-w-4xl mx-auto p-4 flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -538,129 +579,231 @@ const BookingSystem = () => {
                 <button onClick={() => { setIsAdminAuth(false); setView('select'); }} className="px-4 py-2 bg-black text-white rounded-xl text-sm">Выход</button>
               </div>
             </div>
+            {/* Tabs */}
+            <div className="max-w-4xl mx-auto px-4 pb-2">
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setAdminTab('main')} 
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'main' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}
+                >
+                  <Calendar size={16} /> Главная
+                </button>
+                <button 
+                  onClick={() => setAdminTab('history')} 
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'history' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}
+                >
+                  <Users size={16} /> Все записи ({allBookings.length})
+                </button>
+              </div>
+            </div>
           </div>
+
           <div className="max-w-4xl mx-auto p-4">
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-3 mb-6">
-              <div className="bg-white p-4 rounded-2xl text-center shadow-sm"><div className="text-2xl font-bold">{availableSlots.length}</div><div className="text-xs text-gray-500">Свободных</div></div>
-              <div className="bg-yellow-50 p-4 rounded-2xl text-center border border-yellow-200"><div className="text-2xl font-bold text-yellow-600">{Object.keys(pendingBookings).length}</div><div className="text-xs text-yellow-600">Заявок</div></div>
-              <div className="bg-green-50 p-4 rounded-2xl text-center border border-green-200"><div className="text-2xl font-bold text-green-600">{confirmedSlots.length}</div><div className="text-xs text-green-600">Подтверждено</div></div>
-              <div className="bg-orange-50 p-4 rounded-2xl text-center border border-orange-200"><div className="text-2xl font-bold text-orange-600">{pendingCancellations.length}</div><div className="text-xs text-orange-600">Отмен</div></div>
-            </div>
+            
+            {/* ========== MAIN TAB ========== */}
+            {adminTab === 'main' && (
+              <>
+                {/* Stats */}
+                <div className="grid grid-cols-4 gap-3 mb-6">
+                  <div className="bg-white p-4 rounded-2xl text-center shadow-sm"><div className="text-2xl font-bold">{availableSlots.length}</div><div className="text-xs text-gray-500">Свободных</div></div>
+                  <div className="bg-yellow-50 p-4 rounded-2xl text-center border border-yellow-200"><div className="text-2xl font-bold text-yellow-600">{Object.keys(pendingBookings).length}</div><div className="text-xs text-yellow-600">Заявок</div></div>
+                  <div className="bg-green-50 p-4 rounded-2xl text-center border border-green-200"><div className="text-2xl font-bold text-green-600">{confirmedSlots.length}</div><div className="text-xs text-green-600">Подтверждено</div></div>
+                  <div className="bg-orange-50 p-4 rounded-2xl text-center border border-orange-200"><div className="text-2xl font-bold text-orange-600">{pendingCancellations.length}</div><div className="text-xs text-orange-600">Отмен</div></div>
+                </div>
 
-            {/* Cancellations */}
-            {pendingCancellations.length > 0 && (
-              <div className="bg-orange-50 p-4 rounded-2xl border border-orange-200 mb-6">
-                <h2 className="font-bold text-orange-700 mb-4 flex items-center gap-2"><AlertCircle size={20} /> Запросы на отмену</h2>
-                {pendingCancellations.map(c => {
-                  const b = allBookings.find(x => x.id === c.bookingId);
-                  return (
-                    <div key={c.id} className="bg-white p-4 rounded-xl mb-2">
-                      <div className="flex justify-between flex-wrap gap-3">
-                        <div>
-                          <p className="font-bold">{b?.name}</p>
-                          <p className="text-sm text-gray-600">📞 {c.phone}</p>
-                          {c.reason && <p className="text-sm text-gray-500">💬 {c.reason}</p>}
+                {/* Cancellations - IMPROVED with full booking info */}
+                {pendingCancellations.length > 0 && (
+                  <div className="bg-orange-50 p-4 rounded-2xl border border-orange-200 mb-6">
+                    <h2 className="font-bold text-orange-700 mb-4 flex items-center gap-2"><AlertCircle size={20} /> Запросы на отмену</h2>
+                    {pendingCancellations.map(c => {
+                      const booking = allBookings.find(x => x.id === c.bookingId);
+                      const slots = parseSlotIds(booking?.slotIds);
+                      return (
+                        <div key={c.id} className="bg-white p-4 rounded-xl mb-2">
+                          <div className="flex justify-between flex-wrap gap-3">
+                            <div>
+                              <p className="font-bold text-lg">{booking?.name || 'Клиент не найден'}</p>
+                              <p className="text-sm text-gray-600">📞 {booking?.phone || c.phone}</p>
+                              {booking?.telegram && <p className="text-sm text-gray-600">✈️ @{booking.telegram}</p>}
+                              <p className="text-sm text-gray-500 mt-1">
+                                📅 {slots.map(s => `${s.date} ${s.time}`).join(', ')}
+                              </p>
+                              {c.reason && <p className="text-sm text-orange-600 mt-1">💬 Причина: {c.reason}</p>}
+                            </div>
+                            <div className="flex gap-2 items-start">
+                              {booking?.phone && <a href={`tel:${booking.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={20} /></a>}
+                              <button onClick={() => approveCancellation(c.id)} disabled={loading} className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅ Одобрить</button>
+                              <button onClick={() => rejectCancellation(c.id)} disabled={loading} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌ Отклонить</button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => approveCancellation(c.id)} disabled={loading} className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅</button>
-                          <button onClick={() => rejectCancellation(c.id)} disabled={loading} className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌</button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Pending */}
-            {Object.keys(pendingBookings).length > 0 && (
-              <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200 mb-6">
-                <h2 className="font-bold text-yellow-700 mb-4">⏳ Новые заявки</h2>
-                {Object.entries(pendingBookings).map(([id, booking]) => {
-                  const d = getBookingDetails(id);
-                  return (
-                    <div key={id} className="bg-white p-4 rounded-xl mb-2">
-                      <div className="flex justify-between flex-wrap gap-3">
-                        <div>
-                          <p className="font-bold">{d.name || '—'}</p>
-                          <p className="text-sm text-gray-600">📞 {d.phone}</p>
-                          {d.telegram && <p className="text-sm text-gray-600">✈️ @{d.telegram}</p>}
-                          <p className="text-sm text-gray-500">🕐 {booking.slots.map(s => `${s.date} ${s.time}`).join(', ')}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          {d.phone && <a href={`tel:${d.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={20} /></a>}
-                          <button onClick={() => confirmBooking(id)} disabled={loading} className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅</button>
-                          <button onClick={() => rejectBooking(id)} disabled={loading} className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌</button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Add Slots */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
-              <h2 className="font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Добавить слоты</h2>
-              <div className="flex justify-between items-center mb-4">
-                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} className="p-2"><ChevronLeft size={20} /></button>
-                <h3 className="font-medium">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</h3>
-                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} className="p-2"><ChevronRight size={20} /></button>
-              </div>
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {dayNames.map(d => <div key={d} className="text-center text-xs text-gray-400 py-1">{d}</div>)}
-              </div>
-              <div className="grid grid-cols-7 gap-1 mb-4">
-                {[...Array(startingDayOfWeek)].map((_, i) => <div key={`e-${i}`} />)}
-                {[...Array(daysInMonth)].map((_, i) => {
-                  const day = i + 1;
-                  const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const isPast = dateStr < today;
-                  const isSelected = selectedDates.includes(dateStr);
-                  const hasSlots = hockeySlots.some(s => s.date === dateStr);
-                  return (
-                    <button key={day} onClick={() => !isPast && setSelectedDates(p => p.includes(dateStr) ? p.filter(d => d !== dateStr) : [...p, dateStr])} disabled={isPast}
-                      className={`aspect-square rounded-lg text-sm ${isSelected ? 'bg-black text-white' : hasSlots ? 'bg-green-100 text-green-700' : isPast ? 'text-gray-300' : 'hover:bg-gray-100'}`}>
-                      {day}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex gap-2 mb-4">
-                {Object.entries(timeTemplates).map(([k, t]) => (
-                  <button key={k} onClick={() => setSelectedTemplate(k)} className={`flex-1 p-2 rounded-lg text-xs ${selectedTemplate === k ? 'bg-black text-white' : 'bg-gray-100'}`}>{t.name}</button>
-                ))}
-              </div>
-              {selectedDates.length > 0 && <div className="bg-gray-50 p-3 rounded-xl mb-4 text-sm">📅 {selectedDates.length} дат • 🕐 {selectedDates.length * timeTemplates[selectedTemplate].times.length} слотов</div>}
-              <button onClick={addSlotsFromCalendar} disabled={selectedDates.length === 0 || loading} className="w-full bg-black text-white p-3 rounded-xl disabled:opacity-50">{loading ? '...' : 'Добавить'}</button>
-            </div>
-
-            {/* Delete Slots */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold">📅 Слоты ({availableSlots.length})</h2>
-                {showDeleteMode ? (
-                  <div className="flex gap-2">
-                    <button onClick={deleteSelectedSlots} disabled={slotsToDelete.length === 0 || loading} className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">🗑 ({slotsToDelete.length})</button>
-                    <button onClick={() => { setShowDeleteMode(false); setSlotsToDelete([]); }} className="px-3 py-1 bg-gray-200 rounded-lg text-sm">✕</button>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <button onClick={() => setShowDeleteMode(true)} className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm">🗑</button>
                 )}
-              </div>
-              <div className="max-h-64 overflow-y-auto space-y-2">
-                {availableSlots.length === 0 ? <p className="text-gray-500 text-center py-4">Нет слотов</p> : (
-                  availableSlots.sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).map(s => (
-                    <div key={s.id} onClick={() => showDeleteMode && setSlotsToDelete(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
-                      className={`p-3 rounded-xl flex justify-between items-center cursor-pointer ${slotsToDelete.includes(s.id) ? 'bg-red-100 border border-red-300' : 'bg-gray-50'}`}>
-                      <span className="font-medium">{s.date} {s.time}</span>
-                      {showDeleteMode && <span className={slotsToDelete.includes(s.id) ? 'text-red-600' : 'text-gray-400'}>{slotsToDelete.includes(s.id) ? '✓' : '○'}</span>}
+
+                {/* Pending Bookings */}
+                {Object.keys(pendingBookings).length > 0 && (
+                  <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200 mb-6">
+                    <h2 className="font-bold text-yellow-700 mb-4">⏳ Новые заявки</h2>
+                    {Object.entries(pendingBookings).map(([id, booking]) => {
+                      const d = getBookingDetails(id);
+                      return (
+                        <div key={id} className="bg-white p-4 rounded-xl mb-2">
+                          <div className="flex justify-between flex-wrap gap-3">
+                            <div>
+                              <p className="font-bold">{d.name || '—'}</p>
+                              <p className="text-sm text-gray-600">📞 {d.phone}</p>
+                              {d.telegram && <p className="text-sm text-gray-600">✈️ @{d.telegram}</p>}
+                              <p className="text-sm text-gray-500">🕐 {booking.slots.map(s => `${s.date} ${s.time}`).join(', ')}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              {d.phone && <a href={`tel:${d.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={20} /></a>}
+                              <button onClick={() => confirmBooking(id)} disabled={loading} className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅</button>
+                              <button onClick={() => rejectBooking(id)} disabled={loading} className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌</button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add Slots */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
+                  <h2 className="font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Добавить слоты</h2>
+                  <div className="flex justify-between items-center mb-4">
+                    <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} className="p-2"><ChevronLeft size={20} /></button>
+                    <h3 className="font-medium">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</h3>
+                    <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} className="p-2"><ChevronRight size={20} /></button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {dayNames.map(d => <div key={d} className="text-center text-xs text-gray-400 py-1">{d}</div>)}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 mb-4">
+                    {[...Array(startingDayOfWeek)].map((_, i) => <div key={`e-${i}`} />)}
+                    {[...Array(daysInMonth)].map((_, i) => {
+                      const day = i + 1;
+                      const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const isPast = dateStr < today;
+                      const isSelected = selectedDates.includes(dateStr);
+                      const hasSlots = hockeySlots.some(s => s.date === dateStr);
+                      return (
+                        <button key={day} onClick={() => !isPast && setSelectedDates(p => p.includes(dateStr) ? p.filter(d => d !== dateStr) : [...p, dateStr])} disabled={isPast}
+                          className={`aspect-square rounded-lg text-sm ${isSelected ? 'bg-black text-white' : hasSlots ? 'bg-green-100 text-green-700' : isPast ? 'text-gray-300' : 'hover:bg-gray-100'}`}>
+                          {day}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2 mb-4">
+                    {Object.entries(timeTemplates).map(([k, t]) => (
+                      <button key={k} onClick={() => setSelectedTemplate(k)} className={`flex-1 p-2 rounded-lg text-xs ${selectedTemplate === k ? 'bg-black text-white' : 'bg-gray-100'}`}>{t.name}</button>
+                    ))}
+                  </div>
+                  {selectedDates.length > 0 && <div className="bg-gray-50 p-3 rounded-xl mb-4 text-sm">📅 {selectedDates.length} дат • 🕐 {selectedDates.length * timeTemplates[selectedTemplate].times.length} слотов</div>}
+                  <button onClick={addSlotsFromCalendar} disabled={selectedDates.length === 0 || loading} className="w-full bg-black text-white p-3 rounded-xl disabled:opacity-50">{loading ? '...' : 'Добавить'}</button>
+                </div>
+
+                {/* Delete Slots */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="font-bold">📅 Слоты ({availableSlots.length})</h2>
+                    {showDeleteMode ? (
+                      <div className="flex gap-2">
+                        <button onClick={deleteSelectedSlots} disabled={slotsToDelete.length === 0 || loading} className="px-3 py-1 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">🗑 ({slotsToDelete.length})</button>
+                        <button onClick={() => { setShowDeleteMode(false); setSlotsToDelete([]); }} className="px-3 py-1 bg-gray-200 rounded-lg text-sm">✕</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setShowDeleteMode(true)} className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm">🗑</button>
+                    )}
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {availableSlots.length === 0 ? <p className="text-gray-500 text-center py-4">Нет слотов</p> : (
+                      availableSlots.sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).map(s => (
+                        <div key={s.id} onClick={() => showDeleteMode && setSlotsToDelete(p => p.includes(s.id) ? p.filter(id => id !== s.id) : [...p, s.id])}
+                          className={`p-3 rounded-xl flex justify-between items-center cursor-pointer ${slotsToDelete.includes(s.id) ? 'bg-red-100 border border-red-300' : 'bg-gray-50'}`}>
+                          <span className="font-medium">{s.date} {s.time}</span>
+                          {showDeleteMode && <span className={slotsToDelete.includes(s.id) ? 'text-red-600' : 'text-gray-400'}>{slotsToDelete.includes(s.id) ? '✓' : '○'}</span>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ========== HISTORY TAB ========== */}
+            {adminTab === 'history' && (
+              <>
+                {/* Filters */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
+                  <h2 className="font-bold mb-3 flex items-center gap-2"><List size={20} /> Фильтр по статусу</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: 'all', label: 'Все', count: allBookings.length },
+                      { key: 'pending', label: '⏳ Ожидают', count: allBookings.filter(b => b.status === 'pending').length },
+                      { key: 'confirmed', label: '✅ Подтверждённые', count: allBookings.filter(b => b.status === 'confirmed').length },
+                      { key: 'cancellation_requested', label: '⚠️ Запрос отмены', count: allBookings.filter(b => b.status === 'cancellation_requested').length },
+                      { key: 'cancelled', label: '🚫 Отменённые', count: allBookings.filter(b => b.status === 'cancelled').length },
+                      { key: 'rejected', label: '❌ Отклонённые', count: allBookings.filter(b => b.status === 'rejected').length },
+                    ].map(f => (
+                      <button 
+                        key={f.key} 
+                        onClick={() => setHistoryFilter(f.key)}
+                        className={`px-3 py-2 rounded-xl text-sm transition-all ${historyFilter === f.key ? 'bg-black text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                      >
+                        {f.label} ({f.count})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bookings List */}
+                <div className="space-y-3">
+                  {filteredBookings.length === 0 ? (
+                    <div className="bg-white p-8 rounded-2xl text-center text-gray-500">
+                      Нет записей с таким статусом
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
+                  ) : (
+                    filteredBookings.map(booking => {
+                      const slots = parseSlotIds(booking.slotIds);
+                      return (
+                        <div key={booking.id} className={`bg-white p-4 rounded-2xl shadow-sm border-l-4 ${
+                          booking.status === 'confirmed' ? 'border-l-green-500' :
+                          booking.status === 'pending' ? 'border-l-yellow-500' :
+                          booking.status === 'cancellation_requested' ? 'border-l-orange-500' :
+                          booking.status === 'cancelled' ? 'border-l-gray-400' :
+                          booking.status === 'rejected' ? 'border-l-red-500' :
+                          'border-l-gray-300'
+                        }`}>
+                          <div className="flex justify-between items-start flex-wrap gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-bold text-lg">{booking.name}</p>
+                                {getStatusBadge(booking.status)}
+                              </div>
+                              <p className="text-gray-600 text-sm">📞 {booking.phone}</p>
+                              {booking.telegram && <p className="text-gray-600 text-sm">✈️ @{booking.telegram}</p>}
+                              <p className="text-gray-500 text-sm mt-1">
+                                📅 {slots.map(s => `${s.date} ${s.time}`).join(', ')}
+                              </p>
+                              {booking.comment && <p className="text-gray-500 text-sm">💬 {booking.comment}</p>}
+                              <p className="text-gray-400 text-xs mt-2">Создано: {formatDateTime(booking.createdAt)}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              {booking.phone && <a href={`tel:${booking.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={18} /></a>}
+                              {booking.telegram && <a href={`https://t.me/${booking.telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg text-sm">✈️</a>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       </>
