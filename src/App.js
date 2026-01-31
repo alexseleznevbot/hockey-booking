@@ -111,6 +111,10 @@ const BookingSystem = () => {
   // Admin tabs and filters
   const [adminTab, setAdminTab] = useState('main'); // 'main' or 'history'
   const [historyFilter, setHistoryFilter] = useState('all'); // 'all', 'pending', 'confirmed', 'cancelled', 'rejected'
+  
+  // Admin cancel modal
+  const [adminCancelModal, setAdminCancelModal] = useState({ open: false, booking: null });
+  const [adminCancelReason, setAdminCancelReason] = useState('');
 
   const timeTemplates = {
     full: { name: 'Весь день', times: ['09:00','10:15','11:30','12:45','14:00','15:15','16:30','17:45','19:00','20:15','21:30'] },
@@ -259,6 +263,27 @@ const BookingSystem = () => {
     setLoading(false);
   };
 
+  // Admin cancel confirmed booking (force-majeure)
+  const adminCancelBooking = async () => {
+    if (!adminCancelModal.booking) return;
+    setLoading(true);
+    const result = await api.post('adminCancelBooking', { 
+      adminSecret: ADMIN_SECRET, 
+      bookingId: adminCancelModal.booking.id,
+      reason: adminCancelReason
+    });
+    if (result.ok) { 
+      showToast('Запись отменена. Уведомление отправлено.', 'success'); 
+      setAdminCancelModal({ open: false, booking: null });
+      setAdminCancelReason('');
+      await loadSlots(); 
+      await loadAllBookings(); 
+    } else {
+      showToast('Ошибка: ' + result.error, 'error');
+    }
+    setLoading(false);
+  };
+
   // Helpers
   const getDaysInMonth = (date) => {
     const year = date.getFullYear(), month = date.getMonth();
@@ -302,6 +327,7 @@ const BookingSystem = () => {
       confirmed: 'bg-green-100 text-green-700', 
       rejected: 'bg-red-100 text-red-700', 
       cancelled: 'bg-gray-100 text-gray-700', 
+      cancelled_by_admin: 'bg-red-100 text-red-700',
       cancellation_requested: 'bg-orange-100 text-orange-700' 
     };
     const labels = { 
@@ -309,6 +335,7 @@ const BookingSystem = () => {
       confirmed: '✅ Подтверждено', 
       rejected: '❌ Отклонено', 
       cancelled: '🚫 Отменено', 
+      cancelled_by_admin: '🚫 Отменено тренером',
       cancellation_requested: '⚠️ Запрос отмены' 
     };
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100'}`}>{labels[status] || status}</span>;
@@ -566,6 +593,45 @@ const BookingSystem = () => {
       <>
         <style>{styles}</style>
         {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+        
+        {/* Admin Cancel Modal */}
+        <Modal 
+          isOpen={adminCancelModal.open} 
+          onClose={() => { setAdminCancelModal({ open: false, booking: null }); setAdminCancelReason(''); }}
+          title="Отмена записи клиента"
+        >
+          <div className="mb-4">
+            <p className="font-bold text-lg">{adminCancelModal.booking?.name}</p>
+            <p className="text-gray-600">📞 {adminCancelModal.booking?.phone}</p>
+            <p className="text-gray-500 text-sm mt-2">📅 {adminCancelModal.booking?.slotIds}</p>
+          </div>
+          <p className="text-gray-600 mb-4">
+            Клиент получит уведомление об отмене. Укажите причину:
+          </p>
+          <textarea 
+            placeholder="Причина отмены (необязательно)" 
+            value={adminCancelReason} 
+            onChange={e => setAdminCancelReason(e.target.value)} 
+            className="w-full p-3 border-2 rounded-xl mb-4 outline-none focus:border-red-300" 
+            rows={3} 
+          />
+          <div className="flex gap-3">
+            <button 
+              onClick={() => { setAdminCancelModal({ open: false, booking: null }); setAdminCancelReason(''); }} 
+              className="flex-1 p-3 border-2 rounded-xl hover:bg-gray-50"
+            >
+              Назад
+            </button>
+            <button 
+              onClick={adminCancelBooking} 
+              disabled={loading} 
+              className="flex-1 p-3 bg-red-500 text-white rounded-xl disabled:opacity-50 hover:bg-red-600"
+            >
+              {loading ? '...' : '🚫 Отменить запись'}
+            </button>
+          </div>
+        </Modal>
+        
         <div className="min-h-screen bg-gray-50 pb-8">
           {/* Header */}
           <div className="bg-white border-b sticky top-0 z-10">
@@ -794,6 +860,14 @@ const BookingSystem = () => {
                             <div className="flex gap-2">
                               {booking.phone && <a href={`tel:${booking.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={18} /></a>}
                               {booking.telegram && <a href={`https://t.me/${booking.telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg text-sm">✈️</a>}
+                              {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                                <button 
+                                  onClick={() => setAdminCancelModal({ open: true, booking })}
+                                  className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition-colors"
+                                >
+                                  🚫 Отменить
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
