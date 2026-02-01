@@ -1,21 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbzaw2bEKHklmmex5ihsAYOVS_hjY_IZIUSemk8rZ0kZz-4PZlSTyCnaLXo0qkT5cjDW/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
-// Hockey puck logo (simple SVG as data URI)
+// Hockey puck logo
 const BRAND_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cellipse cx='50' cy='50' rx='45' ry='25' fill='%23111'/%3E%3Cellipse cx='50' cy='45' rx='45' ry='25' fill='%23333'/%3E%3Cellipse cx='50' cy='45' rx='35' ry='18' fill='none' stroke='%23555' stroke-width='2'/%3E%3C/svg%3E";
 
 const TRAINER_TELEGRAM = "seleznev_88";
 
-// Detect Telegram Mini App
-const isTelegramWebApp = typeof window !== 'undefined' && window.Telegram?.WebApp;
+// Telegram Mini App Detection & Data
+const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
+const isTelegramWebApp = !!tg;
+
+// Get Telegram user data
+const getTelegramUser = () => {
+  if (!tg || !tg.initDataUnsafe?.user) return null;
+  const user = tg.initDataUnsafe.user;
+  return {
+    chatId: user.id?.toString() || '',
+    username: user.username || '',
+    firstName: user.first_name || '',
+    lastName: user.last_name || ''
+  };
+};
+
+// Initialize Telegram WebApp
 if (isTelegramWebApp) {
-  window.Telegram.WebApp.ready();
-  window.Telegram.WebApp.expand();
+  tg.ready();
+  tg.expand();
+  // Set theme
+  if (tg.colorScheme === 'dark') {
+    document.documentElement.classList.add('dark');
+  }
 }
+
+const telegramUser = getTelegramUser();
 
 // API Functions
 const api = {
@@ -44,7 +65,7 @@ const api = {
   }
 };
 
-// Toast
+// Toast Component
 const Toast = ({ message, type, onClose }) => (
   <div className={`fixed top-4 left-4 right-4 z-50 p-4 rounded-xl shadow-lg ${
     type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-gray-800'
@@ -56,7 +77,7 @@ const Toast = ({ message, type, onClose }) => (
   </div>
 );
 
-// Modal
+// Modal Component
 const Modal = ({ isOpen, onClose, children, title }) => {
   if (!isOpen) return null;
   return (
@@ -72,7 +93,7 @@ const Modal = ({ isOpen, onClose, children, title }) => {
   );
 };
 
-// Spinner
+// Spinner Component
 const Spinner = () => (
   <div className="flex justify-center py-8">
     <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
@@ -95,7 +116,13 @@ const BookingSystem = () => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState('full');
   
-  const [clientForm, setClientForm] = useState({ name: '', phone: '', telegram: '', comment: '' });
+  // Client form - auto-fill from Telegram if available
+  const [clientForm, setClientForm] = useState({ 
+    name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', 
+    phone: '', 
+    telegram: telegramUser?.username || '', 
+    comment: '' 
+  });
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [clientSelectedDate, setClientSelectedDate] = useState(null);
   const [clientMonth, setClientMonth] = useState(new Date());
@@ -109,8 +136,8 @@ const BookingSystem = () => {
   const [cancelReason, setCancelReason] = useState('');
 
   // Admin tabs and filters
-  const [adminTab, setAdminTab] = useState('main'); // 'main' or 'history'
-  const [historyFilter, setHistoryFilter] = useState('all'); // 'all', 'pending', 'confirmed', 'cancelled', 'rejected'
+  const [adminTab, setAdminTab] = useState('main');
+  const [historyFilter, setHistoryFilter] = useState('all');
   
   // Admin cancel modal
   const [adminCancelModal, setAdminCancelModal] = useState({ open: false, booking: null });
@@ -153,7 +180,13 @@ const BookingSystem = () => {
     setLoading(false);
   };
 
-  useEffect(() => { loadSlots(); }, []);
+  useEffect(() => { 
+    loadSlots();
+    // If opened from Telegram, go directly to client view
+    if (isTelegramWebApp) {
+      setView('client');
+    }
+  }, []);
 
   const handleAdminLogin = () => {
     if (adminPassword === ADMIN_SECRET) {
@@ -201,15 +234,34 @@ const BookingSystem = () => {
       return showToast('Заполните имя и телефон', 'error');
     }
     setLoading(true);
-    const result = await api.post('createBooking', {
+    
+    // Include chatId if from Telegram Mini App
+    const bookingData = {
       slotIds: selectedSlots,
       ...clientForm
-    });
+    };
+    
+    if (telegramUser?.chatId) {
+      bookingData.chatId = telegramUser.chatId;
+    }
+    
+    const result = await api.post('createBooking', bookingData);
+    
     if (result.ok) {
       setBookingSuccess(true);
       setSelectedSlots([]);
-      setClientForm({ name: '', phone: '', telegram: '', comment: '' });
+      setClientForm({ 
+        name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', 
+        phone: '', 
+        telegram: telegramUser?.username || '', 
+        comment: '' 
+      });
       await loadSlots();
+      
+      // Haptic feedback in Telegram
+      if (tg?.HapticFeedback) {
+        tg.HapticFeedback.notificationOccurred('success');
+      }
     } else {
       showToast('Ошибка: ' + result.error, 'error');
     }
@@ -263,25 +315,21 @@ const BookingSystem = () => {
     setLoading(false);
   };
 
-  // Admin cancel confirmed booking (force-majeure)
   const adminCancelBooking = async () => {
     if (!adminCancelModal.booking) return;
-    
     const bookingId = String(adminCancelModal.booking.id).trim();
     if (!bookingId) {
       showToast('Ошибка: ID записи не найден', 'error');
       return;
     }
-    
     setLoading(true);
     const result = await api.post('adminCancelBooking', { 
       adminSecret: ADMIN_SECRET, 
       bookingId: bookingId,
       reason: adminCancelReason
     });
-    
     if (result.ok) { 
-      showToast('Запись отменена. Уведомление отправлено.', 'success'); 
+      showToast('Запись отменена', 'success'); 
       setAdminCancelModal({ open: false, booking: null });
       setAdminCancelReason('');
       await loadSlots(); 
@@ -334,7 +382,7 @@ const BookingSystem = () => {
       pending: 'bg-yellow-100 text-yellow-700', 
       confirmed: 'bg-green-100 text-green-700', 
       rejected: 'bg-red-100 text-red-700', 
-      cancelled: 'bg-gray-100 text-gray-700', 
+      cancelled: 'bg-gray-100 text-gray-700',
       cancelled_by_admin: 'bg-red-100 text-red-700',
       cancellation_requested: 'bg-orange-100 text-orange-700' 
     };
@@ -342,7 +390,7 @@ const BookingSystem = () => {
       pending: '⏳ Ожидает', 
       confirmed: '✅ Подтверждено', 
       rejected: '❌ Отклонено', 
-      cancelled: '🚫 Отменено', 
+      cancelled: '🚫 Отменено',
       cancelled_by_admin: '🚫 Отменено тренером',
       cancellation_requested: '⚠️ Запрос отмены' 
     };
@@ -425,13 +473,32 @@ const BookingSystem = () => {
               </div>
               <h2 className="text-2xl font-bold mb-2">Заявка отправлена!</h2>
               <p className="text-gray-500 mb-6">Ожидайте подтверждения</p>
+              
+              {isTelegramWebApp && telegramUser?.chatId && (
+                <div className="bg-blue-50 p-4 rounded-xl mb-4 text-left">
+                  <p className="text-blue-700 text-sm">✅ Уведомления будут приходить в этот чат</p>
+                </div>
+              )}
+              
               <div className="bg-gray-50 p-4 rounded-xl mb-6 text-left">
                 <p className="text-xs text-gray-400 mb-1">📍 Место</p>
                 <p className="font-semibold">Каток «Галактика»</p>
                 <p className="text-gray-500 text-sm">г. Мытищи</p>
               </div>
-              <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-blue-500 text-white p-4 rounded-xl mb-3">✈️ Написать тренеру</a>
-              <button onClick={() => { setBookingSuccess(false); loadSlots(); }} className="w-full bg-black text-white p-4 rounded-xl">Записаться ещё</button>
+              
+              {!isTelegramWebApp && (
+                <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-blue-500 text-white p-4 rounded-xl mb-3">
+                  <Send size={18} /> Написать тренеру
+                </a>
+              )}
+              
+              <button onClick={() => { setBookingSuccess(false); loadSlots(); }} className="w-full bg-black text-white p-4 rounded-xl">
+                {isTelegramWebApp ? 'Записаться ещё' : 'Записаться ещё'}
+              </button>
+              
+              {isTelegramWebApp && (
+                <button onClick={() => tg?.close()} className="w-full text-gray-500 mt-3 p-2">Закрыть</button>
+              )}
             </div>
           </div>
         </>
@@ -490,18 +557,39 @@ const BookingSystem = () => {
       <>
         <style>{styles}</style>
         {toast && <Toast {...toast} onClose={() => setToast(null)} />}
-        <div className="min-h-screen bg-gray-50 pb-32">
+        <div className="min-h-screen bg-gray-50 pb-44">
           <div className="bg-white border-b sticky top-0 z-10">
             <div className="max-w-lg mx-auto p-4 flex justify-between items-center">
-              <button onClick={() => setView('select')} className="text-gray-600"><ArrowLeft size={20} /></button>
-              <img src={BRAND_LOGO} alt="" className="w-8 h-8" />
-              <button onClick={() => setShowMyBookings(true)} className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-2 rounded-full"><History size={16} /> Записи</button>
+              {!isTelegramWebApp ? (
+                <button onClick={() => setView('select')} className="text-gray-600"><ArrowLeft size={20} /></button>
+              ) : (
+                <div className="w-5" />
+              )}
+              <div className="flex items-center gap-2">
+                <img src={BRAND_LOGO} alt="" className="w-8 h-8" />
+                <span className="font-bold text-sm">Hockey Training</span>
+              </div>
+              <button onClick={() => setShowMyBookings(true)} className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-2 rounded-full"><History size={16} /></button>
             </div>
           </div>
+          
           <div className="max-w-lg mx-auto p-4">
+            {/* Telegram user greeting */}
+            {isTelegramWebApp && telegramUser && (
+              <div className="bg-blue-50 p-3 rounded-xl mb-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                  {telegramUser.firstName?.charAt(0) || '?'}
+                </div>
+                <div>
+                  <p className="font-medium">{telegramUser.firstName} {telegramUser.lastName}</p>
+                  {telegramUser.username && <p className="text-blue-600 text-sm">@{telegramUser.username}</p>}
+                </div>
+              </div>
+            )}
+            
             {loading ? <Spinner /> : (
               <>
-                <div className="text-center mb-6">
+                <div className="text-center mb-4">
                   <h1 className="text-xl font-bold">Выберите дату</h1>
                   <p className="text-gray-500 text-sm">Зелёные — есть места</p>
                 </div>
@@ -554,15 +642,42 @@ const BookingSystem = () => {
               </>
             )}
           </div>
+          
+          {/* Bottom booking form */}
           {selectedSlots.length > 0 && (
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl p-4">
               <div className="max-w-lg mx-auto">
-                <div className="flex gap-2 mb-3">
-                  <input type="text" placeholder="Имя *" value={clientForm.name} onChange={e => setClientForm({ ...clientForm, name: e.target.value })} className="flex-1 p-3 border-2 rounded-xl text-sm outline-none" />
-                  <input type="tel" placeholder="Телефон *" value={clientForm.phone} onChange={e => setClientForm({ ...clientForm, phone: e.target.value })} className="flex-1 p-3 border-2 rounded-xl text-sm outline-none" />
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <input 
+                    type="text" 
+                    placeholder="Имя Фамилия *" 
+                    value={clientForm.name} 
+                    onChange={e => setClientForm({ ...clientForm, name: e.target.value })} 
+                    className="p-3 border-2 rounded-xl text-sm outline-none focus:border-black" 
+                  />
+                  <input 
+                    type="tel" 
+                    placeholder="Телефон *" 
+                    value={clientForm.phone} 
+                    onChange={e => setClientForm({ ...clientForm, phone: e.target.value })} 
+                    className="p-3 border-2 rounded-xl text-sm outline-none focus:border-black" 
+                  />
+                </div>
+                <div className="mb-3">
+                  <input 
+                    type="text" 
+                    placeholder="Telegram (для уведомлений)" 
+                    value={clientForm.telegram} 
+                    onChange={e => setClientForm({ ...clientForm, telegram: e.target.value })} 
+                    className={`w-full p-3 border-2 rounded-xl text-sm outline-none focus:border-black ${isTelegramWebApp && telegramUser?.username ? 'bg-gray-50' : ''}`}
+                    readOnly={isTelegramWebApp && !!telegramUser?.username}
+                  />
+                  {isTelegramWebApp && telegramUser?.chatId && (
+                    <p className="text-green-600 text-xs mt-1 ml-1">✓ Уведомления включены</p>
+                  )}
                 </div>
                 <button onClick={submitBooking} disabled={loading || !clientForm.name || !clientForm.phone} className="w-full bg-black text-white p-4 rounded-xl font-bold disabled:opacity-50">
-                  {loading ? '...' : `Записаться • ${selectedSlots.length}`}
+                  {loading ? '...' : `Записаться • ${selectedSlots.length} ${selectedSlots.length === 1 ? 'слот' : 'слота'}`}
                 </button>
               </div>
             </div>
@@ -590,7 +705,6 @@ const BookingSystem = () => {
     });
     const getBookingDetails = (id) => allBookings.find(b => b.id === id) || {};
 
-    // Filter bookings for history
     const filteredBookings = allBookings.filter(b => {
       if (historyFilter === 'all') return true;
       if (historyFilter === 'cancellation_requested') return b.status === 'cancellation_requested';
@@ -613,9 +727,7 @@ const BookingSystem = () => {
             <p className="text-gray-600">📞 {adminCancelModal.booking?.phone}</p>
             <p className="text-gray-500 text-sm mt-2">📅 {adminCancelModal.booking?.slotIds}</p>
           </div>
-          <p className="text-gray-600 mb-4">
-            Клиент получит уведомление об отмене. Укажите причину:
-          </p>
+          <p className="text-gray-600 mb-4">Клиент получит уведомление об отмене.</p>
           <textarea 
             placeholder="Причина отмены (необязательно)" 
             value={adminCancelReason} 
@@ -624,19 +736,8 @@ const BookingSystem = () => {
             rows={3} 
           />
           <div className="flex gap-3">
-            <button 
-              onClick={() => { setAdminCancelModal({ open: false, booking: null }); setAdminCancelReason(''); }} 
-              className="flex-1 p-3 border-2 rounded-xl hover:bg-gray-50"
-            >
-              Назад
-            </button>
-            <button 
-              onClick={adminCancelBooking} 
-              disabled={loading} 
-              className="flex-1 p-3 bg-red-500 text-white rounded-xl disabled:opacity-50 hover:bg-red-600"
-            >
-              {loading ? '...' : '🚫 Отменить запись'}
-            </button>
+            <button onClick={() => { setAdminCancelModal({ open: false, booking: null }); setAdminCancelReason(''); }} className="flex-1 p-3 border-2 rounded-xl">Назад</button>
+            <button onClick={adminCancelBooking} disabled={loading} className="flex-1 p-3 bg-red-500 text-white rounded-xl disabled:opacity-50">{loading ? '...' : '🚫 Отменить'}</button>
           </div>
         </Modal>
         
@@ -656,17 +757,11 @@ const BookingSystem = () => {
             {/* Tabs */}
             <div className="max-w-4xl mx-auto px-4 pb-2">
               <div className="flex gap-2">
-                <button 
-                  onClick={() => setAdminTab('main')} 
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'main' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}
-                >
+                <button onClick={() => setAdminTab('main')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'main' ? 'bg-black text-white' : 'bg-gray-100'}`}>
                   <Calendar size={16} /> Главная
                 </button>
-                <button 
-                  onClick={() => setAdminTab('history')} 
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'history' ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}
-                >
-                  <Users size={16} /> Все записи ({allBookings.length})
+                <button onClick={() => setAdminTab('history')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'history' ? 'bg-black text-white' : 'bg-gray-100'}`}>
+                  <Users size={16} /> Записи ({allBookings.length})
                 </button>
               </div>
             </div>
@@ -679,13 +774,13 @@ const BookingSystem = () => {
               <>
                 {/* Stats */}
                 <div className="grid grid-cols-4 gap-3 mb-6">
-                  <div className="bg-white p-4 rounded-2xl text-center shadow-sm"><div className="text-2xl font-bold">{availableSlots.length}</div><div className="text-xs text-gray-500">Свободных</div></div>
+                  <div className="bg-white p-4 rounded-2xl text-center shadow-sm"><div className="text-2xl font-bold">{availableSlots.length}</div><div className="text-xs text-gray-500">Свободно</div></div>
                   <div className="bg-yellow-50 p-4 rounded-2xl text-center border border-yellow-200"><div className="text-2xl font-bold text-yellow-600">{Object.keys(pendingBookings).length}</div><div className="text-xs text-yellow-600">Заявок</div></div>
-                  <div className="bg-green-50 p-4 rounded-2xl text-center border border-green-200"><div className="text-2xl font-bold text-green-600">{confirmedSlots.length}</div><div className="text-xs text-green-600">Подтверждено</div></div>
+                  <div className="bg-green-50 p-4 rounded-2xl text-center border border-green-200"><div className="text-2xl font-bold text-green-600">{confirmedSlots.length}</div><div className="text-xs text-green-600">Подтв.</div></div>
                   <div className="bg-orange-50 p-4 rounded-2xl text-center border border-orange-200"><div className="text-2xl font-bold text-orange-600">{pendingCancellations.length}</div><div className="text-xs text-orange-600">Отмен</div></div>
                 </div>
 
-                {/* Cancellations - IMPROVED with full booking info */}
+                {/* Cancellations */}
                 {pendingCancellations.length > 0 && (
                   <div className="bg-orange-50 p-4 rounded-2xl border border-orange-200 mb-6">
                     <h2 className="font-bold text-orange-700 mb-4 flex items-center gap-2"><AlertCircle size={20} /> Запросы на отмену</h2>
@@ -696,18 +791,15 @@ const BookingSystem = () => {
                         <div key={c.id} className="bg-white p-4 rounded-xl mb-2">
                           <div className="flex justify-between flex-wrap gap-3">
                             <div>
-                              <p className="font-bold text-lg">{booking?.name || 'Клиент не найден'}</p>
+                              <p className="font-bold text-lg">{booking?.name || 'Неизвестно'}</p>
                               <p className="text-sm text-gray-600">📞 {booking?.phone || c.phone}</p>
                               {booking?.telegram && <p className="text-sm text-gray-600">✈️ @{booking.telegram}</p>}
-                              <p className="text-sm text-gray-500 mt-1">
-                                📅 {slots.map(s => `${s.date} ${s.time}`).join(', ')}
-                              </p>
-                              {c.reason && <p className="text-sm text-orange-600 mt-1">💬 Причина: {c.reason}</p>}
+                              <p className="text-sm text-gray-500 mt-1">📅 {slots.map(s => `${s.date} ${s.time}`).join(', ')}</p>
+                              {c.reason && <p className="text-sm text-orange-600 mt-1">💬 {c.reason}</p>}
                             </div>
                             <div className="flex gap-2 items-start">
-                              {booking?.phone && <a href={`tel:${booking.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={20} /></a>}
-                              <button onClick={() => approveCancellation(c.id)} disabled={loading} className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅ Одобрить</button>
-                              <button onClick={() => rejectCancellation(c.id)} disabled={loading} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌ Отклонить</button>
+                              <button onClick={() => approveCancellation(c.id)} disabled={loading} className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅</button>
+                              <button onClick={() => rejectCancellation(c.id)} disabled={loading} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌</button>
                             </div>
                           </div>
                         </div>
@@ -743,7 +835,7 @@ const BookingSystem = () => {
                   </div>
                 )}
 
-                {/* Add Slots */}
+                {/* Add Slots Calendar */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
                   <h2 className="font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Добавить слоты</h2>
                   <div className="flex justify-between items-center mb-4">
@@ -810,35 +902,27 @@ const BookingSystem = () => {
             {/* ========== HISTORY TAB ========== */}
             {adminTab === 'history' && (
               <>
-                {/* Filters */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
-                  <h2 className="font-bold mb-3 flex items-center gap-2"><List size={20} /> Фильтр по статусу</h2>
+                  <h2 className="font-bold mb-3 flex items-center gap-2"><List size={20} /> Фильтр</h2>
                   <div className="flex flex-wrap gap-2">
                     {[
                       { key: 'all', label: 'Все', count: allBookings.length },
                       { key: 'pending', label: '⏳ Ожидают', count: allBookings.filter(b => b.status === 'pending').length },
-                      { key: 'confirmed', label: '✅ Подтверждённые', count: allBookings.filter(b => b.status === 'confirmed').length },
-                      { key: 'cancellation_requested', label: '⚠️ Запрос отмены', count: allBookings.filter(b => b.status === 'cancellation_requested').length },
-                      { key: 'cancelled', label: '🚫 Отменённые', count: allBookings.filter(b => b.status === 'cancelled').length },
-                      { key: 'rejected', label: '❌ Отклонённые', count: allBookings.filter(b => b.status === 'rejected').length },
+                      { key: 'confirmed', label: '✅ Подтв.', count: allBookings.filter(b => b.status === 'confirmed').length },
+                      { key: 'cancellation_requested', label: '⚠️ Запрос', count: allBookings.filter(b => b.status === 'cancellation_requested').length },
+                      { key: 'cancelled', label: '🚫 Отмена', count: allBookings.filter(b => b.status === 'cancelled' || b.status === 'cancelled_by_admin').length },
+                      { key: 'rejected', label: '❌ Откл.', count: allBookings.filter(b => b.status === 'rejected').length },
                     ].map(f => (
-                      <button 
-                        key={f.key} 
-                        onClick={() => setHistoryFilter(f.key)}
-                        className={`px-3 py-2 rounded-xl text-sm transition-all ${historyFilter === f.key ? 'bg-black text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-                      >
+                      <button key={f.key} onClick={() => setHistoryFilter(f.key)} className={`px-3 py-2 rounded-xl text-sm ${historyFilter === f.key ? 'bg-black text-white' : 'bg-gray-100'}`}>
                         {f.label} ({f.count})
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Bookings List */}
                 <div className="space-y-3">
                   {filteredBookings.length === 0 ? (
-                    <div className="bg-white p-8 rounded-2xl text-center text-gray-500">
-                      Нет записей с таким статусом
-                    </div>
+                    <div className="bg-white p-8 rounded-2xl text-center text-gray-500">Нет записей</div>
                   ) : (
                     filteredBookings.map(booking => {
                       const slots = parseSlotIds(booking.slotIds);
@@ -847,8 +931,6 @@ const BookingSystem = () => {
                           booking.status === 'confirmed' ? 'border-l-green-500' :
                           booking.status === 'pending' ? 'border-l-yellow-500' :
                           booking.status === 'cancellation_requested' ? 'border-l-orange-500' :
-                          booking.status === 'cancelled' ? 'border-l-gray-400' :
-                          booking.status === 'rejected' ? 'border-l-red-500' :
                           'border-l-gray-300'
                         }`}>
                           <div className="flex justify-between items-start flex-wrap gap-3">
@@ -859,9 +941,7 @@ const BookingSystem = () => {
                               </div>
                               <p className="text-gray-600 text-sm">📞 {booking.phone}</p>
                               {booking.telegram && <p className="text-gray-600 text-sm">✈️ @{booking.telegram}</p>}
-                              <p className="text-gray-500 text-sm mt-1">
-                                📅 {slots.map(s => `${s.date} ${s.time}`).join(', ')}
-                              </p>
+                              <p className="text-gray-500 text-sm mt-1">📅 {slots.map(s => `${s.date} ${s.time}`).join(', ')}</p>
                               {booking.comment && <p className="text-gray-500 text-sm">💬 {booking.comment}</p>}
                               <p className="text-gray-400 text-xs mt-2">Создано: {formatDateTime(booking.createdAt)}</p>
                             </div>
@@ -869,12 +949,7 @@ const BookingSystem = () => {
                               {booking.phone && <a href={`tel:${booking.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={18} /></a>}
                               {booking.telegram && <a href={`https://t.me/${booking.telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg text-sm">✈️</a>}
                               {(booking.status === 'confirmed' || booking.status === 'pending') && (
-                                <button 
-                                  onClick={() => setAdminCancelModal({ open: true, booking })}
-                                  className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition-colors"
-                                >
-                                  🚫 Отменить
-                                </button>
+                                <button onClick={() => setAdminCancelModal({ open: true, booking })} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm">🚫</button>
                               )}
                             </div>
                           </div>
@@ -885,7 +960,6 @@ const BookingSystem = () => {
                 </div>
               </>
             )}
-
           </div>
         </div>
       </>
