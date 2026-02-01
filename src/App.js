@@ -182,10 +182,6 @@ const BookingSystem = () => {
 
   useEffect(() => { 
     loadSlots();
-    // If opened from Telegram, go directly to client view
-    if (isTelegramWebApp) {
-      setView('client');
-    }
   }, []);
 
   const handleAdminLogin = () => {
