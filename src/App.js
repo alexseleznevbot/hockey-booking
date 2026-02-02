@@ -143,11 +143,23 @@ const BookingSystem = () => {
   const [adminCancelModal, setAdminCancelModal] = useState({ open: false, booking: null });
   const [adminCancelReason, setAdminCancelReason] = useState('');
 
+  // Weekly schedule template (0 = Monday, 6 = Sunday)
+  const weeklySchedule = {
+    0: ['09:00','10:15','11:30','12:45','14:00','15:15','16:45','18:00','19:15','20:30'], // Понедельник (10)
+    1: ['09:00','10:15','11:30','12:45','14:00','15:15','16:45','18:00','19:15','20:30'], // Вторник (10)
+    2: ['09:00','10:15','11:30','12:45','14:00','15:15','16:45','18:00','19:15','20:30'], // Среда (10)
+    3: ['09:00','10:15','11:30','12:45','14:00','15:15','16:45','18:00','19:15','20:30'], // Четверг (10)
+    4: ['09:00','10:15','11:30','12:45','14:00','15:15','16:45','18:00','19:15','20:30'], // Пятница (10)
+    5: ['09:00','10:15','11:30','12:45','14:00','15:15','16:30','17:45','19:00','20:15'], // Суббота (10)
+    6: ['09:00','10:15','11:30','12:45','14:00','15:15','16:30','17:45','19:00','20:15']  // Воскресенье (10)
+  };
+
+  // Old templates (kept for manual use)
   const timeTemplates = {
-    full: { name: 'Весь день', times: ['09:00','10:15','11:30','12:45','14:00','15:15','16:30','17:45','19:00','20:15','21:30'] },
+    full: { name: 'Весь день', times: ['09:00','10:15','11:30','12:45','14:00','15:15','16:45','18:00','19:15','20:30'] },
     morning: { name: 'Утро', times: ['09:00','10:15','11:30','12:45'] },
-    afternoon: { name: 'День', times: ['14:00','15:15','16:30','17:45'] },
-    evening: { name: 'Вечер', times: ['19:00','20:15','21:30'] }
+    afternoon: { name: 'День', times: ['14:00','15:15','16:45','18:00'] },
+    evening: { name: 'Вечер', times: ['19:15','20:30'] }
   };
 
   const showToast = (message, type = 'info') => {
@@ -208,6 +220,61 @@ const BookingSystem = () => {
       showToast(`Добавлено ${result.added} слотов`, 'success');
       await loadSlots();
       setSelectedDates([]);
+    }
+    setLoading(false);
+  };
+
+  // Add full week with standard schedule
+  const addWeekSlots = async () => {
+    // Find next Monday (or today if it's Monday)
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Calculate days until next Monday
+    let daysUntilMonday;
+    if (dayOfWeek === 1) {
+      daysUntilMonday = 0; // Today is Monday
+    } else if (dayOfWeek === 0) {
+      daysUntilMonday = 1; // Today is Sunday, Monday is tomorrow
+    } else {
+      daysUntilMonday = 8 - dayOfWeek; // Next Monday
+    }
+    
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + daysUntilMonday);
+    startDate.setHours(0, 0, 0, 0);
+    
+    const slotsToAdd = [];
+    
+    // Add slots for 7 days (Monday to Sunday)
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const dayIndex = i; // 0 = Monday, 6 = Sunday
+      const times = weeklySchedule[dayIndex] || [];
+      
+      times.forEach(time => {
+        slotsToAdd.push({ date: dateStr, time, id: `${dateStr}-${time}-${Date.now()}-${Math.random().toString(16).slice(2,6)}` });
+      });
+    }
+    
+    if (slotsToAdd.length === 0) {
+      return showToast('Нет слотов для добавления', 'error');
+    }
+    
+    setLoading(true);
+    const result = await api.post('adminAddSlots', { adminSecret: ADMIN_SECRET, slots: slotsToAdd });
+    if (result.ok) {
+      const mondayStr = `${startDate.getDate()}.${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+      const sundayDate = new Date(startDate);
+      sundayDate.setDate(startDate.getDate() + 6);
+      const sundayStr = `${sundayDate.getDate()}.${String(sundayDate.getMonth() + 1).padStart(2, '0')}`;
+      showToast(`Добавлено ${result.added} слотов (${mondayStr} - ${sundayStr})`, 'success');
+      await loadSlots();
+    } else {
+      showToast('Ошибка: ' + result.error, 'error');
     }
     setLoading(false);
   };
@@ -834,6 +901,18 @@ const BookingSystem = () => {
                 {/* Add Slots Calendar */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
                   <h2 className="font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Добавить слоты</h2>
+                  
+                  {/* Quick Add Week Button */}
+                  <button 
+                    onClick={addWeekSlots} 
+                    disabled={loading} 
+                    className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-xl font-bold mb-4 disabled:opacity-50 hover:from-green-600 hover:to-green-700 transition-all"
+                  >
+                    {loading ? '...' : '📅 Добавить неделю (стандартное расписание)'}
+                  </button>
+                  
+                  <div className="text-center text-gray-400 text-sm mb-4">— или выберите дни вручную —</div>
+                  
                   <div className="flex justify-between items-center mb-4">
                     <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} className="p-2"><ChevronLeft size={20} /></button>
                     <h3 className="font-medium">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</h3>
@@ -864,7 +943,7 @@ const BookingSystem = () => {
                     ))}
                   </div>
                   {selectedDates.length > 0 && <div className="bg-gray-50 p-3 rounded-xl mb-4 text-sm">📅 {selectedDates.length} дат • 🕐 {selectedDates.length * timeTemplates[selectedTemplate].times.length} слотов</div>}
-                  <button onClick={addSlotsFromCalendar} disabled={selectedDates.length === 0 || loading} className="w-full bg-black text-white p-3 rounded-xl disabled:opacity-50">{loading ? '...' : 'Добавить'}</button>
+                  <button onClick={addSlotsFromCalendar} disabled={selectedDates.length === 0 || loading} className="w-full bg-black text-white p-3 rounded-xl disabled:opacity-50">{loading ? '...' : 'Добавить выбранные'}</button>
                 </div>
 
                 {/* Delete Slots */}
