@@ -623,11 +623,7 @@ const BookingSystem = () => {
         <div className="min-h-screen bg-gray-50 pb-44">
           <div className="bg-white border-b sticky top-0 z-10">
             <div className="max-w-lg mx-auto p-4 flex justify-between items-center">
-              {!isTelegramWebApp ? (
-                <button onClick={() => setView('select')} className="text-gray-600"><ArrowLeft size={20} /></button>
-              ) : (
-                <div className="w-5" />
-              )}
+              <button onClick={() => setView('select')} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
               <div className="flex items-center gap-2">
                 <img src={BRAND_LOGO} alt="" className="w-8 h-8" />
                 <span className="font-bold text-sm">Hockey Training</span>
