@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby6hBm53vEl628TPnTq8z_Pw9f8eZimcFBIn1ycB8FlkcPdKb_DmdkosWKXpw9dT_GfGw/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -142,6 +142,9 @@ const BookingSystem = () => {
   // Admin cancel modal
   const [adminCancelModal, setAdminCancelModal] = useState({ open: false, booking: null });
   const [adminCancelReason, setAdminCancelReason] = useState('');
+
+  // Admin delete modal
+  const [adminDeleteModal, setAdminDeleteModal] = useState({ open: false, bookingId: null });
 
   // Weekend visibility control
   const [weekendManualOverride, setWeekendManualOverride] = useState(null); // null = auto, true = open, false = closed
@@ -455,15 +458,16 @@ const BookingSystem = () => {
     setLoading(false);
   };
 
-  const adminDeleteBooking = async (bookingId) => {
-    if (!confirm('Удалить эту запись из истории? Это действие нельзя отменить.')) return;
+  const adminDeleteBooking = async () => {
+    if (!adminDeleteModal.bookingId) return;
     setLoading(true);
     const result = await api.post('adminDeleteBooking', { 
       adminSecret: ADMIN_SECRET, 
-      bookingId: bookingId
+      bookingId: adminDeleteModal.bookingId
     });
     if (result.ok) { 
       showToast('Запись удалена', 'success'); 
+      setAdminDeleteModal({ open: false, bookingId: null });
       await loadAllBookings(); 
     } else {
       showToast('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
@@ -916,6 +920,19 @@ const BookingSystem = () => {
             <button onClick={adminCancelBooking} disabled={loading} className="flex-1 p-3 bg-red-500 text-white rounded-xl disabled:opacity-50">{loading ? '...' : '🚫 Отменить'}</button>
           </div>
         </Modal>
+
+        {/* Admin Delete Modal */}
+        <Modal 
+          isOpen={adminDeleteModal.open} 
+          onClose={() => setAdminDeleteModal({ open: false, bookingId: null })}
+          title="Удаление записи"
+        >
+          <p className="text-gray-600 mb-4">Удалить эту запись из истории? Это действие нельзя отменить.</p>
+          <div className="flex gap-3">
+            <button onClick={() => setAdminDeleteModal({ open: false, bookingId: null })} className="flex-1 p-3 border-2 rounded-xl">Отмена</button>
+            <button onClick={adminDeleteBooking} disabled={loading} className="flex-1 p-3 bg-red-500 text-white rounded-xl disabled:opacity-50">{loading ? '...' : '🗑️ Удалить'}</button>
+          </div>
+        </Modal>
         
         <div className="min-h-screen bg-gray-50 pb-8">
           {/* Header */}
@@ -1188,7 +1205,7 @@ const BookingSystem = () => {
                                 <button onClick={() => setAdminCancelModal({ open: true, booking })} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm">🚫</button>
                               )}
                               <button 
-                                onClick={() => adminDeleteBooking(booking.id)} 
+                                onClick={() => setAdminDeleteModal({ open: true, bookingId: booking.id })} 
                                 disabled={loading}
                                 className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-red-100 hover:text-red-600 disabled:opacity-50"
                                 title="Удалить из истории"
