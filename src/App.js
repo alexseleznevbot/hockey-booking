@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbxu5Jkw1R6hHNwBeMG024Ey6P0bUKW4HU78h9INwr1inVGkzMY6it6atL_6BXuD-OzbRw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -142,6 +142,40 @@ const BookingSystem = () => {
   // Admin cancel modal
   const [adminCancelModal, setAdminCancelModal] = useState({ open: false, booking: null });
   const [adminCancelReason, setAdminCancelReason] = useState('');
+
+  // Weekend visibility control
+  const [weekendManualOverride, setWeekendManualOverride] = useState(null); // null = auto, true = open, false = closed
+
+  // Check if weekends should be open (auto: Friday 17:00+, or manual override)
+  const areWeekendsOpen = () => {
+    // Manual override takes priority
+    if (weekendManualOverride !== null) {
+      return weekendManualOverride;
+    }
+    // Auto logic: open on Friday after 17:00 and all weekend
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    const hour = now.getHours();
+    
+    // Open on: Friday after 17:00, Saturday, Sunday
+    if (day === 5 && hour >= 17) return true; // Friday 17:00+
+    if (day === 6) return true; // Saturday
+    if (day === 0) return true; // Sunday
+    return false;
+  };
+
+  // Check if date is weekend
+  const isWeekend = (dateStr) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    const day = date.getDay();
+    return day === 0 || day === 6; // Sunday or Saturday
+  };
+
+  // Check if weekend date is available for booking
+  const isWeekendAvailable = (dateStr) => {
+    if (!isWeekend(dateStr)) return true; // Not weekend - always available
+    return areWeekendsOpen();
+  };
 
   // Weekly schedule template (0 = Monday, 6 = Sunday)
   const weeklySchedule = {
@@ -687,14 +721,49 @@ const BookingSystem = () => {
                       const isAvailable = availableDates.includes(dateStr);
                       const isPast = dateStr < today;
                       const isSelected = clientSelectedDate === dateStr;
+                      const isWeekendDay = isWeekend(dateStr);
+                      const isWeekendLocked = isWeekendDay && !areWeekendsOpen();
+                      
+                      const handleDayClick = () => {
+                        if (isPast) return;
+                        if (isWeekendLocked) {
+                          showToast('📅 Запись на выходные откроется в пятницу в 17:00', 'info');
+                          return;
+                        }
+                        if (isAvailable) {
+                          setClientSelectedDate(dateStr);
+                        }
+                      };
+                      
                       return (
-                        <button key={day} onClick={() => !isPast && isAvailable && setClientSelectedDate(dateStr)} disabled={isPast || !isAvailable}
-                          className={`aspect-square rounded-xl text-sm font-medium transition-all ${isSelected ? 'bg-black text-white scale-110' : isAvailable ? 'bg-green-100 text-green-700' : isPast ? 'text-gray-300' : 'text-gray-400'}`}>
-                          {day}
+                        <button 
+                          key={day} 
+                          onClick={handleDayClick} 
+                          disabled={isPast || (!isAvailable && !isWeekendLocked)}
+                          className={`aspect-square rounded-xl text-sm font-medium transition-all ${
+                            isSelected 
+                              ? 'bg-black text-white scale-110' 
+                              : isWeekendLocked && isAvailable
+                                ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-300'
+                                : isAvailable 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : isPast 
+                                    ? 'text-gray-300' 
+                                    : 'text-gray-400'
+                          }`}
+                        >
+                          <div>{day}</div>
+                          {isWeekendLocked && isAvailable && <div className="text-xs">🔒</div>}
                         </button>
                       );
                     })}
                   </div>
+                  {/* Weekend notice */}
+                  {!areWeekendsOpen() && availableDates.some(d => isWeekend(d)) && (
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-center">
+                      <p className="text-yellow-700 text-sm">📅 Запись на Сб и Вс откроется в пятницу в 17:00</p>
+                    </div>
+                  )}
                 </div>
                 {clientSelectedDate && (
                   <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
@@ -869,6 +938,54 @@ const BookingSystem = () => {
                   <div className="bg-yellow-50 p-4 rounded-2xl text-center border border-yellow-200"><div className="text-2xl font-bold text-yellow-600">{Object.keys(pendingBookings).length}</div><div className="text-xs text-yellow-600">Заявок</div></div>
                   <div className="bg-green-50 p-4 rounded-2xl text-center border border-green-200"><div className="text-2xl font-bold text-green-600">{confirmedSlots.length}</div><div className="text-xs text-green-600">Подтв.</div></div>
                   <div className="bg-orange-50 p-4 rounded-2xl text-center border border-orange-200"><div className="text-2xl font-bold text-orange-600">{pendingCancellations.length}</div><div className="text-xs text-orange-600">Отмен</div></div>
+                </div>
+
+                {/* Weekend Control Panel */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm mb-6 border-2 border-gray-200">
+                  <h2 className="font-bold mb-3 flex items-center gap-2">⚙️ Управление выходными (Сб, Вс)</h2>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <p className="text-sm">
+                        Статус: {areWeekendsOpen() 
+                          ? <span className="text-green-600 font-bold">✅ Открыты для записи</span> 
+                          : <span className="text-yellow-600 font-bold">🔒 Закрыты</span>
+                        }
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {weekendManualOverride === null 
+                          ? '⏰ Авто-режим: откроются в Пт 17:00' 
+                          : weekendManualOverride 
+                            ? '👆 Открыты вручную' 
+                            : '👆 Закрыты вручную'
+                        }
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {areWeekendsOpen() ? (
+                        <button 
+                          onClick={() => setWeekendManualOverride(false)} 
+                          className="px-4 py-2 bg-yellow-500 text-white rounded-xl text-sm font-medium"
+                        >
+                          🔒 Скрыть выходные
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => setWeekendManualOverride(true)} 
+                          className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-medium"
+                        >
+                          🔓 Открыть сейчас
+                        </button>
+                      )}
+                      {weekendManualOverride !== null && (
+                        <button 
+                          onClick={() => setWeekendManualOverride(null)} 
+                          className="px-4 py-2 bg-gray-200 rounded-xl text-sm font-medium"
+                        >
+                          ↩️ Авто
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Cancellations */}
