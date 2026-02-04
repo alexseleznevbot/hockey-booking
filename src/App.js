@@ -455,6 +455,22 @@ const BookingSystem = () => {
     setLoading(false);
   };
 
+  const adminDeleteBooking = async (bookingId) => {
+    if (!confirm('Удалить эту запись из истории? Это действие нельзя отменить.')) return;
+    setLoading(true);
+    const result = await api.post('adminDeleteBooking', { 
+      adminSecret: ADMIN_SECRET, 
+      bookingId: bookingId
+    });
+    if (result.ok) { 
+      showToast('Запись удалена', 'success'); 
+      await loadAllBookings(); 
+    } else {
+      showToast('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
+    }
+    setLoading(false);
+  };
+
   // Helpers
   const getDaysInMonth = (date) => {
     const year = date.getFullYear(), month = date.getMonth();
@@ -1165,12 +1181,20 @@ const BookingSystem = () => {
                               {booking.comment && <p className="text-gray-500 text-sm">💬 {booking.comment}</p>}
                               <p className="text-gray-400 text-xs mt-2">Создано: {formatDateTime(booking.createdAt)}</p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               {booking.phone && <a href={`tel:${booking.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={18} /></a>}
                               {booking.telegram && <a href={`https://t.me/${booking.telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg text-sm">✈️</a>}
                               {(booking.status === 'confirmed' || booking.status === 'pending') && (
                                 <button onClick={() => setAdminCancelModal({ open: true, booking })} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm">🚫</button>
                               )}
+                              <button 
+                                onClick={() => adminDeleteBooking(booking.id)} 
+                                disabled={loading}
+                                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-red-100 hover:text-red-600 disabled:opacity-50"
+                                title="Удалить из истории"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
                           </div>
                         </div>
