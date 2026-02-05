@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycby6hBm53vEl628TPnTq8z_Pw9f8eZimcFBIn1ycB8FlkcPdKb_DmdkosWKXpw9dT_GfGw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -116,7 +116,11 @@ const BookingSystem = () => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState('full');
   
-  // Client form - auto-fill from Telegram if available
+  // Saved user data from database (for returning users)
+  const [savedUserData, setSavedUserData] = useState(null);
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
+  
+  // Client form - will be updated after loading saved data
   const [clientForm, setClientForm] = useState({ 
     name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', 
     phone: '', 
@@ -247,8 +251,34 @@ const BookingSystem = () => {
     setLoading(false);
   };
 
+  // Load saved user data from database if Telegram user
+  const loadUserData = async () => {
+    if (!telegramUser?.chatId) {
+      setUserDataLoaded(true);
+      return;
+    }
+    
+    try {
+      const result = await api.get('getUserData', { chatId: telegramUser.chatId });
+      if (result.ok && result.user) {
+        setSavedUserData(result.user);
+        // Update form with saved data
+        setClientForm(prev => ({
+          ...prev,
+          name: result.user.firstName || prev.name,
+          phone: result.user.phone || prev.phone,
+          telegram: result.user.username || prev.telegram
+        }));
+      }
+    } catch (e) {
+      console.error('Error loading user data:', e);
+    }
+    setUserDataLoaded(true);
+  };
+
   useEffect(() => { 
     loadSlots();
+    loadUserData();
   }, []);
 
   const handleAdminLogin = () => {
@@ -833,16 +863,21 @@ const BookingSystem = () => {
                     placeholder="Имя Фамилия *" 
                     value={clientForm.name} 
                     onChange={e => setClientForm({ ...clientForm, name: e.target.value })} 
-                    className="p-3 border-2 rounded-xl text-sm outline-none focus:border-black" 
+                    className={`p-3 border-2 rounded-xl text-sm outline-none focus:border-black ${savedUserData?.firstName ? 'bg-gray-50' : ''}`}
+                    readOnly={isTelegramWebApp && !!savedUserData?.firstName}
                   />
                   <input 
                     type="tel" 
                     placeholder="Телефон *" 
                     value={clientForm.phone} 
                     onChange={e => setClientForm({ ...clientForm, phone: e.target.value })} 
-                    className="p-3 border-2 rounded-xl text-sm outline-none focus:border-black" 
+                    className={`p-3 border-2 rounded-xl text-sm outline-none focus:border-black ${savedUserData?.phone ? 'bg-gray-50' : ''}`}
+                    readOnly={isTelegramWebApp && !!savedUserData?.phone}
                   />
                 </div>
+                {isTelegramWebApp && savedUserData?.phone && (
+                  <p className="text-green-600 text-xs mb-2 ml-1">✓ Ваши данные сохранены</p>
+                )}
                 <div className="mb-3">
                   <input 
                     type="text" 
