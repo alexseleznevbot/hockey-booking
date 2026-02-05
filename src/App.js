@@ -730,7 +730,10 @@ const BookingSystem = () => {
                 <img src={BRAND_LOGO} alt="" className="w-8 h-8" />
                 <span className="font-bold text-sm">Hockey Training</span>
               </div>
-              <button onClick={() => setShowMyBookings(true)} className="flex items-center gap-1 text-sm bg-gray-100 px-3 py-2 rounded-full"><History size={16} /></button>
+              <button onClick={() => setShowMyBookings(true)} className="flex items-center gap-2 text-sm bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-all">
+                <History size={16} />
+                <span>Мои записи</span>
+              </button>
             </div>
           </div>
           
