@@ -251,6 +251,14 @@ const BookingSystem = () => {
     setLoading(false);
   };
 
+  const loadBookingsByChatId = async (chatId) => {
+    if (!chatId) return;
+    setLoading(true);
+    const result = await api.get('getBookingsByChatId', { chatId });
+    setHockeyBookings(result.ok ? result.bookings || [] : []);
+    setLoading(false);
+  };
+
   // Load saved user data from database if Telegram user
   const loadUserData = async () => {
     if (!telegramUser?.chatId) {
@@ -287,10 +295,10 @@ const BookingSystem = () => {
 
   // Auto-load bookings when "My Bookings" is opened for Telegram users
   useEffect(() => {
-    if (showMyBookings && isTelegramWebApp && savedUserData?.phone) {
-      loadBookingsByPhone(savedUserData.phone);
+    if (showMyBookings && isTelegramWebApp && telegramUser?.chatId) {
+      loadBookingsByChatId(telegramUser.chatId);
     }
-  }, [showMyBookings, savedUserData?.phone]);
+  }, [showMyBookings]);
 
   const handleAdminLogin = () => {
     if (adminPassword === ADMIN_SECRET) {
@@ -702,8 +710,8 @@ const BookingSystem = () => {
                 <div><h2 className="text-xl font-bold">Мои записи</h2><p className="text-gray-500 text-sm">История</p></div>
               </div>
               
-              {/* Show phone input only for non-Telegram users or users without saved phone */}
-              {!(isTelegramWebApp && savedUserData?.phone) && (
+              {/* Show phone input only for non-Telegram users */}
+              {!isTelegramWebApp && (
                 <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
                   <input type="tel" placeholder="Ваш телефон" value={myBookingsPhone} onChange={e => setMyBookingsPhone(e.target.value)} className="w-full p-3 border-2 rounded-xl mb-3 outline-none" />
                   <button onClick={() => loadBookingsByPhone(myBookingsPhone)} disabled={loading || !myBookingsPhone} className="w-full bg-black text-white p-3 rounded-xl disabled:opacity-50">{loading ? '...' : 'Найти'}</button>
@@ -711,10 +719,10 @@ const BookingSystem = () => {
               )}
               
               {/* Show user info for Telegram users */}
-              {isTelegramWebApp && savedUserData?.phone && (
+              {isTelegramWebApp && telegramUser && (
                 <div className="bg-green-50 p-4 rounded-2xl border border-green-200 mb-4">
-                  <p className="text-green-700 font-medium">👤 {savedUserData.firstName || telegramUser?.firstName}</p>
-                  <p className="text-green-600 text-sm">📞 {savedUserData.phone}</p>
+                  <p className="text-green-700 font-medium">👤 {telegramUser.firstName} {telegramUser.lastName}</p>
+                  {telegramUser.username && <p className="text-green-600 text-sm">@{telegramUser.username}</p>}
                 </div>
               )}
               
@@ -735,7 +743,7 @@ const BookingSystem = () => {
                   ))}
                   {hockeyBookings.length === 0 && (
                     <div className="bg-white p-8 rounded-2xl text-center text-gray-500">
-                      {isTelegramWebApp && savedUserData?.phone ? 'У вас пока нет записей' : 'Введите телефон'}
+                      {isTelegramWebApp ? 'У вас пока нет записей' : 'Введите телефон'}
                     </div>
                   )}
                 </div>
