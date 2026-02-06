@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbwpIkVmZrtvxYz9uwh6p7ts3yaErdeUqnNoWCIOoCH4-WJf1n-zOvDy_hfH_A-9WcuWHA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -438,16 +438,27 @@ const BookingSystem = () => {
   const requestCancellation = async () => {
     if (!cancelModal.booking) return;
     setLoading(true);
+    
+    // Get phone from saved data or input
+    const phone = isTelegramWebApp && savedUserData?.phone 
+      ? savedUserData.phone 
+      : myBookingsPhone;
+    
     const result = await api.post('requestCancellation', {
       bookingId: cancelModal.booking.id,
-      phone: myBookingsPhone,
+      phone: phone,
       reason: cancelReason
     });
     if (result.ok) {
       showToast('Запрос на отмену отправлен', 'success');
       setCancelModal({ open: false, booking: null });
       setCancelReason('');
-      await loadBookingsByPhone(myBookingsPhone);
+      // Reload bookings
+      if (isTelegramWebApp && telegramUser?.chatId) {
+        await loadBookingsByChatId(telegramUser.chatId);
+      } else {
+        await loadBookingsByPhone(myBookingsPhone);
+      }
     } else {
       showToast('Ошибка: ' + result.error, 'error');
     }
@@ -737,7 +748,7 @@ const BookingSystem = () => {
                       <p className="text-gray-600 text-sm">📅 {b.slotIds}</p>
                       {b.comment && <p className="text-gray-500 text-sm">💬 {b.comment}</p>}
                       {(b.status === 'confirmed' || b.status === 'pending') && (
-                        <button onClick={() => setCancelModal({ open: true, booking: b })} className="mt-2 text-red-500 text-sm flex items-center gap-1"><XCircle size={16} /> Отменить</button>
+                        <button onClick={() => setCancelModal({ open: true, booking: b })} className="mt-2 text-red-500 text-sm flex items-center gap-1"><XCircle size={16} /> Запросить отмену</button>
                       )}
                     </div>
                   ))}
