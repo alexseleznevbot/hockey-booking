@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbzaY8hMU2eByHqHjBogMTaFKUpCIyARJNRysrEnkfpnvnGGXM2rohE4PDguorvCUni7SQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -688,12 +688,10 @@ const BookingSystem = () => {
               )}
               
               <button onClick={() => { setBookingSuccess(false); loadSlots(); }} className="w-full bg-black text-white p-4 rounded-xl">
-                {isTelegramWebApp ? 'Записаться ещё' : 'Записаться ещё'}
+                Записаться ещё
               </button>
               
-              {isTelegramWebApp && (
-                <button onClick={() => tg?.close()} className="w-full text-gray-500 mt-3 p-2">Закрыть</button>
-              )}
+              <button onClick={() => setBookingSuccess(false)} className="w-full text-gray-500 mt-3 p-2">Закрыть</button>
             </div>
           </div>
         </>
