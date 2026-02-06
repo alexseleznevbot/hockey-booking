@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz92ClX3iuOrmoWJAUso31OPChK3i2N7kcqnozklz2quk36xS8-f_Ug4ipYfTJQIsPKsA/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -123,7 +123,7 @@ const BookingSystem = () => {
   // Client form - will be updated after loading saved data
   const [clientForm, setClientForm] = useState({ 
     name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', 
-    phone: '', 
+    phone: '+7', 
     telegram: telegramUser?.username || '', 
     comment: '' 
   });
@@ -150,8 +150,30 @@ const BookingSystem = () => {
   // Admin delete modal
   const [adminDeleteModal, setAdminDeleteModal] = useState({ open: false, bookingId: null });
 
-  // Weekend visibility control
-  const [weekendManualOverride, setWeekendManualOverride] = useState(null); // null = auto, true = open, false = closed
+  // Single slot add
+  const [singleSlotDate, setSingleSlotDate] = useState('');
+  const [singleSlotTime, setSingleSlotTime] = useState('');
+
+  // Weekend visibility control - persist in localStorage
+  const [weekendManualOverride, setWeekendManualOverride] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('weekendManualOverride');
+      if (saved === 'true') return true;
+      if (saved === 'false') return false;
+    }
+    return null; // null = auto, true = open, false = closed
+  });
+
+  // Save weekendManualOverride to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (weekendManualOverride === null) {
+        localStorage.removeItem('weekendManualOverride');
+      } else {
+        localStorage.setItem('weekendManualOverride', String(weekendManualOverride));
+      }
+    }
+  }, [weekendManualOverride]);
 
   // Check if weekends should be open (auto: Friday 17:00+, or manual override)
   const areWeekendsOpen = () => {
@@ -270,10 +292,14 @@ const BookingSystem = () => {
       const result = await api.get('getUserData', { chatId: telegramUser.chatId });
       if (result.ok && result.user) {
         setSavedUserData(result.user);
-        // Update form with saved data
+        // Update form with saved data - prefer fullName over firstName
+        const savedName = result.user.fullName || 
+          `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim() ||
+          `${telegramUser.firstName || ''} ${telegramUser.lastName || ''}`.trim();
+        
         setClientForm(prev => ({
           ...prev,
-          name: result.user.firstName || prev.name,
+          name: savedName || prev.name,
           phone: result.user.phone || prev.phone,
           telegram: result.user.username || prev.telegram
         }));
@@ -324,6 +350,28 @@ const BookingSystem = () => {
       showToast(`Добавлено ${result.added} слотов`, 'success');
       await loadSlots();
       setSelectedDates([]);
+    }
+    setLoading(false);
+  };
+
+  // Add single slot
+  const addSingleSlot = async () => {
+    if (!singleSlotDate || !singleSlotTime) {
+      return showToast('Выберите дату и время', 'error');
+    }
+    setLoading(true);
+    const slotId = `${singleSlotDate}-${singleSlotTime}-${Date.now()}`;
+    const result = await api.post('adminAddSlots', { 
+      adminSecret: ADMIN_SECRET, 
+      slots: [{ date: singleSlotDate, time: singleSlotTime, id: slotId }] 
+    });
+    if (result.ok) {
+      showToast('Слот добавлен', 'success');
+      await loadSlots();
+      setSingleSlotDate('');
+      setSingleSlotTime('');
+    } else {
+      showToast('Ошибка: ' + (result.error || 'Слот уже существует'), 'error');
     }
     setLoading(false);
   };
@@ -675,17 +723,15 @@ const BookingSystem = () => {
                 </div>
               )}
               
-              <div className="bg-gray-50 p-4 rounded-xl mb-6 text-left">
+              <div className="bg-gray-50 p-4 rounded-xl mb-4 text-left">
                 <p className="text-xs text-gray-400 mb-1">📍 Место</p>
                 <p className="font-semibold">Каток «Галактика»</p>
                 <p className="text-gray-500 text-sm">г. Мытищи</p>
               </div>
               
-              {!isTelegramWebApp && (
-                <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-blue-500 text-white p-4 rounded-xl mb-3">
-                  <Send size={18} /> Написать тренеру
-                </a>
-              )}
+              <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-blue-500 text-white p-4 rounded-xl mb-3">
+                <Send size={18} /> Связаться с тренером
+              </a>
               
               <button onClick={() => { setBookingSuccess(false); loadSlots(); }} className="w-full bg-black text-white p-4 rounded-xl">
                 Записаться ещё
@@ -714,9 +760,14 @@ const BookingSystem = () => {
           <div className="min-h-screen bg-gray-50 p-4">
             <div className="max-w-lg mx-auto">
               <button onClick={() => setShowMyBookings(false)} className="flex items-center gap-2 text-gray-600 mb-6"><ArrowLeft size={20} /> Назад</button>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center"><History className="text-white" size={24} /></div>
-                <div><h2 className="text-xl font-bold">Мои записи</h2><p className="text-gray-500 text-sm">История</p></div>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center"><History className="text-white" size={24} /></div>
+                  <div><h2 className="text-xl font-bold">Мои записи</h2><p className="text-gray-500 text-sm">История</p></div>
+                </div>
+                <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-xl text-sm">
+                  <Send size={16} /> Тренер
+                </a>
               </div>
               
               {/* Show phone input only for non-Telegram users */}
@@ -775,10 +826,15 @@ const BookingSystem = () => {
                 <img src={BRAND_LOGO} alt="" className="w-8 h-8" />
                 <span className="font-bold text-sm">Hockey Training</span>
               </div>
-              <button onClick={() => setShowMyBookings(true)} className="flex items-center gap-2 text-sm bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-all">
-                <History size={16} />
-                <span>Мои записи</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-500 hover:bg-blue-50 rounded-full" title="Написать тренеру">
+                  <Send size={18} />
+                </a>
+                <button onClick={() => setShowMyBookings(true)} className="flex items-center gap-2 text-sm bg-gray-100 px-3 py-2 rounded-full hover:bg-gray-200 transition-all">
+                  <History size={16} />
+                  <span>Мои записи</span>
+                </button>
+              </div>
             </div>
           </div>
           
@@ -916,9 +972,20 @@ const BookingSystem = () => {
                   />
                   <input 
                     type="tel" 
-                    placeholder="Телефон *" 
+                    placeholder="+7XXXXXXXXXX" 
                     value={clientForm.phone} 
-                    onChange={e => setClientForm({ ...clientForm, phone: e.target.value })} 
+                    onChange={e => {
+                      let val = e.target.value;
+                      // Ensure +7 prefix stays
+                      if (!val.startsWith('+7')) {
+                        val = '+7' + val.replace(/^\+?7?/, '');
+                      }
+                      // Remove non-digit characters except +
+                      val = '+7' + val.slice(2).replace(/\D/g, '');
+                      // Limit to +7 + 10 digits
+                      if (val.length > 12) val = val.slice(0, 12);
+                      setClientForm({ ...clientForm, phone: val });
+                    }}
                     className={`p-3 border-2 rounded-xl text-sm outline-none focus:border-black ${savedUserData?.phone ? 'bg-gray-50' : ''}`}
                     readOnly={isTelegramWebApp && !!savedUserData?.phone}
                   />
@@ -1162,6 +1229,33 @@ const BookingSystem = () => {
                 {/* Add Slots Calendar */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
                   <h2 className="font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Добавить слоты</h2>
+                  
+                  {/* Add Single Slot */}
+                  <div className="bg-gray-50 p-4 rounded-xl mb-4">
+                    <p className="text-sm font-medium mb-3">➕ Добавить один слот</p>
+                    <div className="flex gap-2 mb-2">
+                      <input 
+                        type="date" 
+                        value={singleSlotDate} 
+                        onChange={e => setSingleSlotDate(e.target.value)}
+                        min={today}
+                        className="flex-1 p-2 border-2 rounded-lg text-sm"
+                      />
+                      <input 
+                        type="time" 
+                        value={singleSlotTime} 
+                        onChange={e => setSingleSlotTime(e.target.value)}
+                        className="flex-1 p-2 border-2 rounded-lg text-sm"
+                      />
+                    </div>
+                    <button 
+                      onClick={addSingleSlot} 
+                      disabled={!singleSlotDate || !singleSlotTime || loading}
+                      className="w-full bg-blue-500 text-white p-2 rounded-lg text-sm disabled:opacity-50"
+                    >
+                      {loading ? '...' : 'Добавить слот'}
+                    </button>
+                  </div>
                   
                   {/* Quick Add Week Button */}
                   <button 
