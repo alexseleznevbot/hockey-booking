@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbzWcLe-M2_fCHGR-QZP5vs1HUbppDw3V4pFsuT00fB2mMp1O-CLtjMILwNwzU_x2OgxsQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -363,10 +363,12 @@ const BookingSystem = () => {
     const slotId = `${singleSlotDate}-${singleSlotTime}-${Date.now()}`;
     const result = await api.post('adminAddSlots', { 
       adminSecret: ADMIN_SECRET, 
-      slots: [{ date: singleSlotDate, time: singleSlotTime, id: slotId }] 
+      slots: [{ date: singleSlotDate, time: singleSlotTime, id: slotId }],
+      notifySingleSlot: true // Notify about single new slot
     });
     if (result.ok) {
-      showToast('Слот добавлен', 'success');
+      const notifyMsg = result.notified > 0 ? ` • Уведомлено: ${result.notified}` : '';
+      showToast(`Слот добавлен${notifyMsg}`, 'success');
       await loadSlots();
       setSingleSlotDate('');
       setSingleSlotTime('');
@@ -629,7 +631,8 @@ const BookingSystem = () => {
       rejected: 'bg-red-100 text-red-700', 
       cancelled: 'bg-gray-100 text-gray-700',
       cancelled_by_admin: 'bg-red-100 text-red-700',
-      cancellation_requested: 'bg-orange-100 text-orange-700' 
+      cancellation_requested: 'bg-orange-100 text-orange-700',
+      deleted_by_admin: 'bg-gray-200 text-gray-500'
     };
     const labels = { 
       pending: '⏳ Ожидает', 
@@ -637,7 +640,8 @@ const BookingSystem = () => {
       rejected: '❌ Отклонено', 
       cancelled: '🚫 Отменено',
       cancelled_by_admin: '🚫 Отменено тренером',
-      cancellation_requested: '⚠️ Запрос отмены' 
+      cancellation_requested: '⚠️ Запрос отмены',
+      deleted_by_admin: '🗑️ Архив'
     };
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100'}`}>{labels[status] || status}</span>;
   };
