@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbz92ClX3iuOrmoWJAUso31OPChK3i2N7kcqnozklz2quk36xS8-f_Ug4ipYfTJQIsPKsA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -417,13 +417,15 @@ const BookingSystem = () => {
     }
     
     setLoading(true);
-    const result = await api.post('adminAddSlots', { adminSecret: ADMIN_SECRET, slots: slotsToAdd });
+    // notifyUsers: true - send notification to all clients about new week
+    const result = await api.post('adminAddSlots', { adminSecret: ADMIN_SECRET, slots: slotsToAdd, notifyUsers: true });
     if (result.ok) {
       const mondayStr = `${startDate.getDate()}.${String(startDate.getMonth() + 1).padStart(2, '0')}`;
       const sundayDate = new Date(startDate);
       sundayDate.setDate(startDate.getDate() + 6);
       const sundayStr = `${sundayDate.getDate()}.${String(sundayDate.getMonth() + 1).padStart(2, '0')}`;
-      showToast(`Добавлено ${result.added} слотов (${mondayStr} - ${sundayStr})`, 'success');
+      const notifyMsg = result.notified > 0 ? ` • Уведомлено: ${result.notified}` : '';
+      showToast(`Добавлено ${result.added} слотов (${mondayStr} - ${sundayStr})${notifyMsg}`, 'success');
       await loadSlots();
     } else {
       showToast('Ошибка: ' + result.error, 'error');
@@ -651,8 +653,8 @@ const BookingSystem = () => {
         <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-4">
           <div className="max-w-md mx-auto pt-10">
             <div className="text-center mb-10">
-              <img src={BRAND_LOGO} alt="Logo" className="w-24 h-24 mx-auto mb-4" />
-              <h1 className="text-3xl font-black">HOCKEY TRAINING</h1>
+              <img src={BRAND_LOGO} alt="Логотип" className="w-24 h-24 mx-auto mb-4" />
+              <h1 className="text-3xl font-black">ХОККЕЙНЫЕ ТРЕНИРОВКИ</h1>
               <p className="text-gray-500 text-sm mt-1">Персональные тренировки</p>
             </div>
             <button onClick={() => { loadSlots(); setView('client'); }} className="w-full bg-black text-white p-5 rounded-2xl mb-4 hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg">
@@ -824,7 +826,7 @@ const BookingSystem = () => {
               <button onClick={() => setView('select')} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
               <div className="flex items-center gap-2">
                 <img src={BRAND_LOGO} alt="" className="w-8 h-8" />
-                <span className="font-bold text-sm">Hockey Training</span>
+                <span className="font-bold text-sm">Хоккейные тренировки</span>
               </div>
               <div className="flex items-center gap-2">
                 <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer" className="p-2 text-blue-500 hover:bg-blue-50 rounded-full" title="Написать тренеру">
@@ -1204,18 +1206,22 @@ const BookingSystem = () => {
                   <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-200 mb-6">
                     <h2 className="font-bold text-yellow-700 mb-4">⏳ Новые заявки</h2>
                     {Object.entries(pendingBookings).map(([id, booking]) => {
-                      const d = getBookingDetails(id);
+                      const d = allBookings.find(b => b.id === id) || {};
+                      const phone = d.phone || booking.phone || '';
+                      const name = d.name || booking.name || '—';
+                      const telegram = d.telegram || booking.telegram || '';
                       return (
                         <div key={id} className="bg-white p-4 rounded-xl mb-2">
                           <div className="flex justify-between flex-wrap gap-3">
                             <div>
-                              <p className="font-bold">{d.name || '—'}</p>
-                              <p className="text-sm text-gray-600">📞 {d.phone}</p>
-                              {d.telegram && <p className="text-sm text-gray-600">✈️ @{d.telegram}</p>}
+                              <p className="font-bold">{name}</p>
+                              <p className="text-sm text-gray-600">📞 {phone || 'Нет телефона'}</p>
+                              {telegram && <p className="text-sm text-gray-600">✈️ @{telegram}</p>}
                               <p className="text-sm text-gray-500">🕐 {booking.slots.map(s => `${s.date} ${s.time}`).join(', ')}</p>
                             </div>
-                            <div className="flex gap-2">
-                              {d.phone && <a href={`tel:${d.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={20} /></a>}
+                            <div className="flex gap-2 items-start">
+                              {phone && <a href={`tel:${phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><Phone size={20} /></a>}
+                              {telegram && <a href={`https://t.me/${telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><Send size={20} /></a>}
                               <button onClick={() => confirmBooking(id)} disabled={loading} className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅</button>
                               <button onClick={() => rejectBooking(id)} disabled={loading} className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌</button>
                             </div>
