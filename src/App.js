@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbwGAx9smrRbfXaf82miITvRJH0mkgT799CE0yu9YNj1XRbHghYxrqtx_Io55tebDqZedw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwb34vD0z2GXTY-iQ5b0m_wFcypUz218d-DJH0Z0vefGiir29u7ccl6xLFrIZkpAc8INw/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -361,26 +361,36 @@ const BookingSystem = () => {
 
   // Add single slot
   const addSingleSlot = async () => {
-    if (!singleSlotDate || !singleSlotTime) {
-      return showToast('Выберите дату и время', 'error');
+    if (!singleSlotDate) {
+      return showToast('Выберите дату', 'error');
     }
+    if (!singleSlotTime) {
+      return showToast('Выберите время', 'error');
+    }
+    
     setLoading(true);
     const slotId = `${singleSlotDate}-${singleSlotTime}-${Date.now()}`;
+    
     const result = await api.post('adminAddSlots', { 
       adminSecret: ADMIN_SECRET, 
       slots: [{ date: singleSlotDate, time: singleSlotTime, id: slotId, isHockey: singleSlotIsHockey }],
-      notifySingleSlot: true // Notify about single new slot
+      notifySingleSlot: true
     });
+    
     if (result.ok) {
-      const notifyMsg = result.notified > 0 ? ` • Уведомлено: ${result.notified}` : '';
-      const hockeyMsg = singleSlotIsHockey ? ' 🏒' : '';
-      showToast(`Слот добавлен${hockeyMsg}${notifyMsg}`, 'success');
+      if (result.added === 0) {
+        showToast('Слот уже существует на это время', 'error');
+      } else {
+        const notifyMsg = result.notified > 0 ? ` • Уведомлено: ${result.notified}` : '';
+        const hockeyMsg = singleSlotIsHockey ? ' 🏒' : '';
+        showToast(`Слот добавлен${hockeyMsg}${notifyMsg}`, 'success');
+        setSingleSlotDate('');
+        setSingleSlotTime('');
+        setSingleSlotIsHockey(false);
+      }
       await loadSlots();
-      setSingleSlotDate('');
-      setSingleSlotTime('');
-      setSingleSlotIsHockey(false);
     } else {
-      showToast('Ошибка: ' + (result.error || 'Слот уже существует'), 'error');
+      showToast('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
     }
     setLoading(false);
   };
@@ -1263,12 +1273,15 @@ const BookingSystem = () => {
                         onChange={e => setSingleSlotDate(e.target.value)}
                         min={today}
                         className="flex-1 p-2 border-2 rounded-lg text-sm"
+                        placeholder="Дата"
                       />
                       <input 
                         type="time" 
                         value={singleSlotTime} 
                         onChange={e => setSingleSlotTime(e.target.value)}
+                        step="60"
                         className="flex-1 p-2 border-2 rounded-lg text-sm"
+                        placeholder="Время"
                       />
                     </div>
                     <label className="flex items-center gap-2 mb-3 cursor-pointer">
@@ -1280,12 +1293,15 @@ const BookingSystem = () => {
                       />
                       <span className="text-sm">🏒 Хоккейный час</span>
                     </label>
+                    {singleSlotDate && singleSlotTime && (
+                      <p className="text-xs text-gray-500 mb-2">📅 {singleSlotDate} в {singleSlotTime}</p>
+                    )}
                     <button 
                       onClick={addSingleSlot} 
                       disabled={!singleSlotDate || !singleSlotTime || loading}
                       className="w-full bg-blue-500 text-white p-2 rounded-lg text-sm disabled:opacity-50"
                     >
-                      {loading ? '...' : 'Добавить слот'}
+                      {loading ? '⏳ Добавление...' : !singleSlotDate ? '📅 Выберите дату' : !singleSlotTime ? '🕐 Выберите время' : '✅ Добавить слот'}
                     </button>
                   </div>
                   
@@ -1410,6 +1426,36 @@ const BookingSystem = () => {
                             <div className="flex gap-2 flex-wrap">
                               {booking.phone && <a href={`tel:${booking.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={18} /></a>}
                               {booking.telegram && <a href={`https://t.me/${booking.telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg text-sm">✈️</a>}
+                              {/* Buttons for cancellation request */}
+                              {booking.status === 'cancellation_requested' && (
+                                <>
+                                  <button 
+                                    onClick={async () => {
+                                      const c = cancellations.find(x => x.bookingId === booking.id && x.status === 'pending');
+                                      if (c) await approveCancellation(c.id);
+                                      else showToast('Запрос не найден', 'error');
+                                    }} 
+                                    disabled={loading}
+                                    className="px-3 py-2 bg-green-100 text-green-600 rounded-lg text-sm disabled:opacity-50"
+                                    title="Подтвердить отмену"
+                                  >
+                                    ✅
+                                  </button>
+                                  <button 
+                                    onClick={async () => {
+                                      const c = cancellations.find(x => x.bookingId === booking.id && x.status === 'pending');
+                                      if (c) await rejectCancellation(c.id);
+                                      else showToast('Запрос не найден', 'error');
+                                    }} 
+                                    disabled={loading}
+                                    className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm disabled:opacity-50"
+                                    title="Отклонить отмену"
+                                  >
+                                    ❌
+                                  </button>
+                                </>
+                              )}
+                              {/* Button for admin cancel */}
                               {(booking.status === 'confirmed' || booking.status === 'pending') && (
                                 <button onClick={() => setAdminCancelModal({ open: true, booking })} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm">🚫</button>
                               )}
