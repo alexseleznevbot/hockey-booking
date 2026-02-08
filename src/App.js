@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbxct6veG-NbBQDv8Yy9oGHVoiTAxTgmzqaQMEQSe5z9UYSp0I3M-zUd5bpGCO0XnBLA9Q/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwGAx9smrRbfXaf82miITvRJH0mkgT799CE0yu9YNj1XRbHghYxrqtx_Io55tebDqZedw/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -153,6 +153,7 @@ const BookingSystem = () => {
   // Single slot add
   const [singleSlotDate, setSingleSlotDate] = useState('');
   const [singleSlotTime, setSingleSlotTime] = useState('');
+  const [singleSlotIsHockey, setSingleSlotIsHockey] = useState(false);
 
   // Weekend visibility control - persist in localStorage
   const [weekendManualOverride, setWeekendManualOverride] = useState(() => {
@@ -227,8 +228,12 @@ const BookingSystem = () => {
     '4-14:00': true   // Пятница 14:00
   };
 
-  // Check if slot is hockey hour
-  const isHockeyHour = (dateStr, time) => {
+  // Check if slot is hockey hour (from schedule or manually marked)
+  const isHockeyHour = (dateStr, time, slot = null) => {
+    // Check if slot is manually marked as hockey
+    if (slot && slot.isHockey) return true;
+    
+    // Check standard hockey hours schedule
     const date = new Date(dateStr + 'T00:00:00');
     const jsDay = date.getDay(); // JS: 0=Вс, 1=Пн, 2=Вт...
     const dayIndex = jsDay === 0 ? 6 : jsDay - 1; // Наш формат: 0=Пн, 1=Вт, 2=Ср...
@@ -363,15 +368,17 @@ const BookingSystem = () => {
     const slotId = `${singleSlotDate}-${singleSlotTime}-${Date.now()}`;
     const result = await api.post('adminAddSlots', { 
       adminSecret: ADMIN_SECRET, 
-      slots: [{ date: singleSlotDate, time: singleSlotTime, id: slotId }],
+      slots: [{ date: singleSlotDate, time: singleSlotTime, id: slotId, isHockey: singleSlotIsHockey }],
       notifySingleSlot: true // Notify about single new slot
     });
     if (result.ok) {
       const notifyMsg = result.notified > 0 ? ` • Уведомлено: ${result.notified}` : '';
-      showToast(`Слот добавлен${notifyMsg}`, 'success');
+      const hockeyMsg = singleSlotIsHockey ? ' 🏒' : '';
+      showToast(`Слот добавлен${hockeyMsg}${notifyMsg}`, 'success');
       await loadSlots();
       setSingleSlotDate('');
       setSingleSlotTime('');
+      setSingleSlotIsHockey(false);
     } else {
       showToast('Ошибка: ' + (result.error || 'Слот уже существует'), 'error');
     }
@@ -527,7 +534,13 @@ const BookingSystem = () => {
   const rejectBooking = async (bookingId) => {
     setLoading(true);
     const result = await api.post('adminRejectBooking', { adminSecret: ADMIN_SECRET, bookingId });
-    if (result.ok) { showToast('Отклонено', 'success'); await loadSlots(); await loadAllBookings(); }
+    if (result.ok) { 
+      showToast('Отклонено', 'success'); 
+      // Small delay to ensure database is updated
+      await new Promise(r => setTimeout(r, 300));
+      await loadSlots(); 
+      await loadAllBookings(); 
+    }
     setLoading(false);
   };
 
@@ -930,7 +943,7 @@ const BookingSystem = () => {
                     <h3 className="font-bold mb-3">{formatDate(clientSelectedDate)}</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {getSlotsForDate(clientSelectedDate).map(slot => {
-                        const isHockey = isHockeyHour(clientSelectedDate, slot.time);
+                        const isHockey = isHockeyHour(clientSelectedDate, slot.time, slot);
                         const isSelected = selectedSlots.includes(slot.id);
                         return (
                           <button 
@@ -1258,6 +1271,15 @@ const BookingSystem = () => {
                         className="flex-1 p-2 border-2 rounded-lg text-sm"
                       />
                     </div>
+                    <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={singleSlotIsHockey}
+                        onChange={e => setSingleSlotIsHockey(e.target.checked)}
+                        className="w-4 h-4 rounded"
+                      />
+                      <span className="text-sm">🏒 Хоккейный час</span>
+                    </label>
                     <button 
                       onClick={addSingleSlot} 
                       disabled={!singleSlotDate || !singleSlotTime || loading}
