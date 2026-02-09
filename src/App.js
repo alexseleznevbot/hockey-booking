@@ -1484,11 +1484,10 @@ const BookingSystem = () => {
                               )}
                               <button 
                                 onClick={() => setAdminDeleteModal({ open: true, bookingId: booking.id })} 
-                                disabled={loading}
-                                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-red-100 hover:text-red-600 disabled:opacity-50"
+                                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-red-100 hover:text-red-600 active:scale-95 transition-all"
                                 title="Удалить из истории"
                               >
-                                <Trash2 size={16} />
+                                🗑️
                               </button>
                             </div>
                           </div>
