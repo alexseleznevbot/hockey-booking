@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbxdnSFD0Y2sjUxAeTtXoNV-QiORWEUU4DH5cMKPOJkKLb4EejsxTt3SVwC7OMONWE9AMg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbw0YTkdbApox-7OGeX2mgd2aOzXKjFSPfPTXlZBwwAwL6mkD_cL6yvYHfIzCGnjF1kp1g/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -1193,10 +1193,22 @@ const BookingSystem = () => {
                         </button>
                       ) : (
                         <button 
-                          onClick={() => setWeekendManualOverride(true)} 
-                          className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-medium"
+                          onClick={async () => {
+                            setWeekendManualOverride(true);
+                            // Send notifications to all clients
+                            setLoading(true);
+                            const result = await api.get('adminNotifyWeekendOpen', { adminSecret: ADMIN_SECRET });
+                            if (result.ok) {
+                              showToast(`Выходные открыты! Уведомлено: ${result.sent}`, 'success');
+                            } else {
+                              showToast('Выходные открыты (уведомления не отправлены)', 'info');
+                            }
+                            setLoading(false);
+                          }} 
+                          disabled={loading}
+                          className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-medium disabled:opacity-50"
                         >
-                          🔓 Открыть сейчас
+                          {loading ? '...' : '🔓 Открыть сейчас'}
                         </button>
                       )}
                       {weekendManualOverride !== null && (
@@ -1453,14 +1465,19 @@ const BookingSystem = () => {
                               {booking.status === 'cancellation_requested' && (
                                 <button 
                                   onClick={async () => {
-                                    // Find cancellation request by bookingId (any status that makes sense)
-                                    const c = cancellations.find(x => String(x.bookingId) === String(booking.id));
-                                    if (c) {
-                                      await approveCancellation(c.id);
+                                    setLoading(true);
+                                    const result = await api.post('adminApproveCancellationByBookingId', { 
+                                      adminSecret: ADMIN_SECRET, 
+                                      bookingId: booking.id 
+                                    });
+                                    if (result.ok) {
+                                      showToast('Отмена подтверждена', 'success');
+                                      await loadAllBookings();
+                                      await loadCancellations();
                                     } else {
-                                      // If not found in cancellations, try to approve directly via booking
-                                      showToast('Обновите страницу (🔄) и попробуйте снова', 'info');
+                                      showToast('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
                                     }
+                                    setLoading(false);
                                   }} 
                                   disabled={loading}
                                   className="px-3 py-2 bg-green-100 text-green-600 rounded-lg text-sm disabled:opacity-50"
