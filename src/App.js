@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbzdCQ2AocprBvr9x-K7uPf0UWrdxKi11YQuOHydIoazv_JkUtNQY4xk-DZGhGu2_1Dc8Q/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -1237,6 +1237,18 @@ const BookingSystem = () => {
                       const phone = d.phone || booking.phone || '';
                       const name = d.name || booking.name || '—';
                       const telegram = d.telegram || booking.telegram || '';
+                      
+                      const copyPhone = (e) => {
+                        e.preventDefault();
+                        if (phone) {
+                          navigator.clipboard.writeText(phone).then(() => {
+                            showToast(`📞 ${phone} скопирован`, 'success');
+                          }).catch(() => {
+                            showToast(`📞 ${phone}`, 'info');
+                          });
+                        }
+                      };
+                      
                       return (
                         <div key={id} className="bg-white p-4 rounded-xl mb-2">
                           <div className="flex justify-between flex-wrap gap-3">
@@ -1247,7 +1259,7 @@ const BookingSystem = () => {
                               <p className="text-sm text-gray-500">🕐 {booking.slots.map(s => `${s.date} ${s.time}`).join(', ')}</p>
                             </div>
                             <div className="flex gap-2 items-start">
-                              {phone && <a href={`tel:${phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><Phone size={20} /></a>}
+                              {phone && <button onClick={copyPhone} className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><Phone size={20} /></button>}
                               {telegram && <a href={`https://t.me/${telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><Send size={20} /></a>}
                               <button onClick={() => confirmBooking(id)} disabled={loading} className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm disabled:opacity-50">✅</button>
                               <button onClick={() => rejectBooking(id)} disabled={loading} className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm disabled:opacity-50">❌</button>
@@ -1424,7 +1436,7 @@ const BookingSystem = () => {
                               <p className="text-gray-400 text-xs mt-2">Создано: {formatDateTime(booking.createdAt)}</p>
                             </div>
                             <div className="flex gap-2 flex-wrap">
-                              {booking.phone && <a href={`tel:${booking.phone}`} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={18} /></a>}
+                              {booking.phone && <button onClick={() => { navigator.clipboard.writeText(booking.phone).then(() => showToast(`📞 ${booking.phone} скопирован`, 'success')).catch(() => showToast(`📞 ${booking.phone}`, 'info')); }} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={18} /></button>}
                               {booking.telegram && <a href={`https://t.me/${booking.telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg text-sm">✈️</a>}
                               {/* Buttons for cancellation request */}
                               {booking.status === 'cancellation_requested' && (
