@@ -1035,6 +1035,17 @@ const BookingSystem = () => {
                     <p className="text-green-600 text-xs mt-1 ml-1">✓ Уведомления включены</p>
                   )}
                 </div>
+                <div className="mb-4">
+                  <textarea 
+                    placeholder="Комментарий (необязательно)" 
+                    value={clientForm.comment} 
+                    onChange={e => setClientForm({ ...clientForm, comment: e.target.value })} 
+                    className="w-full p-3 border-2 rounded-xl text-sm outline-none focus:border-black resize-none"
+                    rows={2}
+                    maxLength={200}
+                  />
+                  <p className="text-gray-400 text-xs mt-1 ml-1">{clientForm.comment.length}/200</p>
+                </div>
                 <button onClick={submitBooking} disabled={loading || !clientForm.name || !clientForm.phone} className="w-full bg-black text-white p-4 rounded-xl font-bold disabled:opacity-50">
                   {loading ? '...' : `Записаться • ${selectedSlots.length} ${selectedSlots.length === 1 ? 'слот' : 'слота'}`}
                 </button>
