@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbykbao3J0I5Npy_vw-BOzJIE8gv7zgqqQ5fGBpBZi_1vwIqRzoSEq9heV24GS7xxHsGoA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -1451,32 +1451,23 @@ const BookingSystem = () => {
                               {booking.telegram && <a href={`https://t.me/${booking.telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg text-sm">✈️</a>}
                               {/* Buttons for cancellation request */}
                               {booking.status === 'cancellation_requested' && (
-                                <>
-                                  <button 
-                                    onClick={async () => {
-                                      const c = cancellations.find(x => x.bookingId === booking.id && x.status === 'pending');
-                                      if (c) await approveCancellation(c.id);
-                                      else showToast('Запрос не найден', 'error');
-                                    }} 
-                                    disabled={loading}
-                                    className="px-3 py-2 bg-green-100 text-green-600 rounded-lg text-sm disabled:opacity-50"
-                                    title="Подтвердить отмену"
-                                  >
-                                    ✅
-                                  </button>
-                                  <button 
-                                    onClick={async () => {
-                                      const c = cancellations.find(x => x.bookingId === booking.id && x.status === 'pending');
-                                      if (c) await rejectCancellation(c.id);
-                                      else showToast('Запрос не найден', 'error');
-                                    }} 
-                                    disabled={loading}
-                                    className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm disabled:opacity-50"
-                                    title="Отклонить отмену"
-                                  >
-                                    ❌
-                                  </button>
-                                </>
+                                <button 
+                                  onClick={async () => {
+                                    // Find cancellation request by bookingId (any status that makes sense)
+                                    const c = cancellations.find(x => String(x.bookingId) === String(booking.id));
+                                    if (c) {
+                                      await approveCancellation(c.id);
+                                    } else {
+                                      // If not found in cancellations, try to approve directly via booking
+                                      showToast('Обновите страницу (🔄) и попробуйте снова', 'info');
+                                    }
+                                  }} 
+                                  disabled={loading}
+                                  className="px-3 py-2 bg-green-100 text-green-600 rounded-lg text-sm disabled:opacity-50"
+                                  title="Подтвердить отмену"
+                                >
+                                  ✅
+                                </button>
                               )}
                               {/* Button for admin cancel */}
                               {(booking.status === 'confirmed' || booking.status === 'pending') && (
