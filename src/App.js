@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbxneRp5pVJLseM2ZpNKkaZRAYRHmseqVmQ_FSSTNLwtn8ZYX07w7BTs8gu-uoIGNYjFFQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -778,14 +778,6 @@ const BookingSystem = () => {
         <>
           <style>{styles}</style>
           {toast && <Toast {...toast} onClose={() => setToast(null)} />}
-          <Modal isOpen={cancelModal.open} onClose={() => setCancelModal({ open: false, booking: null })} title="Отмена записи">
-            <p className="text-gray-600 mb-4">Вы уверены?</p>
-            <textarea placeholder="Причина (необязательно)" value={cancelReason} onChange={e => setCancelReason(e.target.value)} className="w-full p-3 border-2 rounded-xl mb-4 outline-none" rows={3} />
-            <div className="flex gap-3">
-              <button onClick={() => setCancelModal({ open: false, booking: null })} className="flex-1 p-3 border-2 rounded-xl">Отмена</button>
-              <button onClick={requestCancellation} disabled={loading} className="flex-1 p-3 bg-red-500 text-white rounded-xl disabled:opacity-50">{loading ? '...' : 'Отменить'}</button>
-            </div>
-          </Modal>
           <div className="min-h-screen bg-gray-50 p-4">
             <div className="max-w-lg mx-auto">
               <button onClick={() => setShowMyBookings(false)} className="flex items-center gap-2 text-gray-600 mb-6"><ArrowLeft size={20} /> Назад</button>
@@ -826,7 +818,12 @@ const BookingSystem = () => {
                       <p className="text-gray-600 text-sm">📅 {b.slotIds}</p>
                       {b.comment && <p className="text-gray-500 text-sm">💬 {b.comment}</p>}
                       {(b.status === 'confirmed' || b.status === 'pending') && (
-                        <button onClick={() => setCancelModal({ open: true, booking: b })} className="mt-2 text-red-500 text-sm flex items-center gap-1"><XCircle size={16} /> Запросить отмену</button>
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-gray-500 text-xs mb-2">Для отмены записи свяжитесь с тренером:</p>
+                          <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-blue-500 text-white px-3 py-2 rounded-lg text-sm">
+                            <Send size={14} /> Написать тренеру
+                          </a>
+                        </div>
                       )}
                     </div>
                   ))}
