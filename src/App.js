@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbzf0FyGFRB7d4u6OH-hnPfizAn9p_WZYnHhw-LmrrgmEdJOYOESIXseCYmeUstgHrGthg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwp3-LW4GeUVzMO4Bc-Bdca39SUVeRfViNoSVWIRD1Q5Y54T96hIhtxJ58AOnmIhjGlPg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -644,8 +644,23 @@ const BookingSystem = () => {
   };
 
   const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const monthNamesShort = ['янв.','февр.','март','апр.','мая','июня','июля','авг.','сент.','окт.','нояб.','дек.'];
   const dayNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
   const getTodayStr = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; };
+
+  // Format slotIds for client display (hides ID, shows only date and time)
+  const formatSlotForClient = (slotIds) => {
+    const slots = parseSlotIds(slotIds);
+    if (slots.length === 0) return 'Нет данных';
+    return slots.map(s => {
+      if (!s.date || !s.time) return '';
+      const parts = s.date.split('-');
+      if (parts.length < 3) return `${s.date} ${s.time}`;
+      const day = parseInt(parts[2], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      return `${day} ${monthNamesShort[month]}, ${s.time}`;
+    }).filter(Boolean).join(', ');
+  };
 
   const getStatusBadge = (status) => {
     const styles = { 
@@ -815,7 +830,7 @@ const BookingSystem = () => {
                         <p className="font-bold">{b.name}</p>
                         {getStatusBadge(b.status)}
                       </div>
-                      <p className="text-gray-600 text-sm">📅 {b.slotIds}</p>
+                      <p className="text-gray-600 text-sm">📅 {formatSlotForClient(b.slotIds)}</p>
                       {b.comment && <p className="text-gray-500 text-sm">💬 {b.comment}</p>}
                       {(b.status === 'confirmed' || b.status === 'pending') && (
                         <div className="mt-3 pt-3 border-t border-gray-100">
