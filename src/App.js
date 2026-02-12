@@ -815,7 +815,16 @@ const BookingSystem = () => {
                         <p className="font-bold">{b.name}</p>
                         {getStatusBadge(b.status)}
                       </div>
-                      <p className="text-gray-600 text-sm">📅 {b.slotIds}</p>
+                      <p className="text-gray-600 text-sm">📅 {String(b.slotIds || '').split(',').map(id => {
+                        const p = id.trim().split('-');
+                        if (p.length >= 4) {
+                          const day = parseInt(p[2], 10);
+                          const month = parseInt(p[1], 10);
+                          const months = ['','янв.','февр.','марта','апр.','мая','июня','июля','авг.','сент.','окт.','нояб.','дек.'];
+                          return `${day} ${months[month]}, ${p[3]}`;
+                        }
+                        return id;
+                      }).join(', ')}</p>
                       {b.comment && <p className="text-gray-500 text-sm">💬 {b.comment}</p>}
                       {(b.status === 'confirmed' || b.status === 'pending') && (
                         <div className="mt-3 pt-3 border-t border-gray-100">
