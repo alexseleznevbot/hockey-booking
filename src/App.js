@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbzf0FyGFRB7d4u6OH-hnPfizAn9p_WZYnHhw-LmrrgmEdJOYOESIXseCYmeUstgHrGthg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -128,6 +128,7 @@ const BookingSystem = () => {
     comment: '' 
   });
   const [selectedSlots, setSelectedSlots] = useState([]);
+  const [trainingType, setTrainingType] = useState(''); // 'skating', 'ofp', 'shooting', or '' for hockey hour
   const [clientSelectedDate, setClientSelectedDate] = useState(null);
   const [clientMonth, setClientMonth] = useState(new Date());
   const [bookingSuccess, setBookingSuccess] = useState(false);
@@ -469,12 +470,34 @@ const BookingSystem = () => {
     if (!clientForm.name || !clientForm.phone || selectedSlots.length === 0) {
       return showToast('Заполните имя и телефон', 'error');
     }
+    
+    // Check if training type is required (non-hockey slots)
+    const selectedSlotObjects = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
+    const allHockey = selectedSlotObjects.length > 0 && selectedSlotObjects.every(s => isHockeyHour(s.date, s.time, s));
+    
+    if (!allHockey && !trainingType) {
+      return showToast('Выберите тип тренировки', 'error');
+    }
+    
     setLoading(true);
+    
+    // Determine training type label
+    let trainingTypeLabel = '';
+    if (allHockey) {
+      trainingTypeLabel = '🏒 Хоккейный час';
+    } else if (trainingType === 'skating') {
+      trainingTypeLabel = '⛸️ Катание';
+    } else if (trainingType === 'ofp') {
+      trainingTypeLabel = '🏋️ ОФП';
+    } else if (trainingType === 'shooting') {
+      trainingTypeLabel = '🎯 Бросковая зона';
+    }
     
     // Include chatId if from Telegram Mini App
     const bookingData = {
       slotIds: selectedSlots,
-      ...clientForm
+      ...clientForm,
+      trainingType: trainingTypeLabel
     };
     
     if (telegramUser?.chatId) {
@@ -486,6 +509,7 @@ const BookingSystem = () => {
     if (result.ok) {
       setBookingSuccess(true);
       setSelectedSlots([]);
+      setTrainingType('');
       setClientForm({ 
         name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', 
         phone: '', 
@@ -1052,7 +1076,45 @@ const BookingSystem = () => {
                   />
                   <p className="text-gray-400 text-xs mt-1 ml-1">{clientForm.comment.length}/200</p>
                 </div>
-                <button onClick={submitBooking} disabled={loading || !clientForm.name || !clientForm.phone} className="w-full bg-black text-white p-4 rounded-xl font-bold disabled:opacity-50">
+                {/* Training type selector - only for non-hockey slots */}
+                {(() => {
+                  const selectedSlotObjects = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
+                  const allHockey = selectedSlotObjects.length > 0 && selectedSlotObjects.every(s => isHockeyHour(s.date, s.time, s));
+                  if (allHockey) return null;
+                  return (
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">Тип тренировки *</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => setTrainingType('skating')}
+                          className={`p-3 rounded-xl text-sm font-medium transition-all ${trainingType === 'skating' ? 'bg-black text-white' : 'bg-gray-100'}`}
+                        >
+                          ⛸️ Катание
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setTrainingType('ofp')}
+                          className={`p-3 rounded-xl text-sm font-medium transition-all ${trainingType === 'ofp' ? 'bg-black text-white' : 'bg-gray-100'}`}
+                        >
+                          🏋️ ОФП
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setTrainingType('shooting')}
+                          className={`p-3 rounded-xl text-sm font-medium transition-all ${trainingType === 'shooting' ? 'bg-black text-white' : 'bg-gray-100'}`}
+                        >
+                          🎯 Бросковая
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <button onClick={submitBooking} disabled={loading || !clientForm.name || !clientForm.phone || (() => {
+                  const selectedSlotObjects = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
+                  const allHockey = selectedSlotObjects.length > 0 && selectedSlotObjects.every(s => isHockeyHour(s.date, s.time, s));
+                  return !allHockey && !trainingType;
+                })()} className="w-full bg-black text-white p-4 rounded-xl font-bold disabled:opacity-50">
                   {loading ? '...' : `Записаться • ${selectedSlots.length} ${selectedSlots.length === 1 ? 'слот' : 'слота'}`}
                 </button>
               </div>
