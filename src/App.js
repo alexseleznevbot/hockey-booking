@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbybDccXK8Csks567FiaBh8BCZpbpOqGnZjJ2Q5dZhC86w6Yhj00N45IjZr60gSIqYrHcA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -114,102 +114,131 @@ const Avatar = ({ name, size = 40 }) => {
   );
 };
 
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ background: '#fff1f0', border: '1px solid #fca5a5', borderRadius: 16, padding: 24, margin: 12 }}>
+          <p style={{ fontWeight: 800, color: '#dc2626', marginBottom: 8 }}>⚠️ Ошибка в этом разделе</p>
+          <p style={{ fontSize: 12, color: '#7f1d1d', fontFamily: 'monospace', wordBreak: 'break-all' }}>{String(this.state.error)}</p>
+          <button onClick={() => this.setState({ error: null })} style={{ marginTop: 12, padding: '8px 16px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>Попробовать снова</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── Clients Tab Component ────────────────────────────────────────────────────
 const ClientsTab = ({ allBookings, hockeySlots, clientSearch, setClientSearch, clientSort, setClientSort, showToast, PRICE_PER_SESSION }) => {
-  // Build slotMap for date lookup
+  // Guard: wait for data
+  const bookings = Array.isArray(allBookings) ? allBookings : [];
+  const slots = Array.isArray(hockeySlots) ? hockeySlots : [];
+
+  // Build slotMap: id → slot (for date lookup)
   const slotMap = {};
-  hockeySlots.forEach(s => { slotMap[String(s.id)] = s; });
+  slots.forEach(s => { if (s && s.id) slotMap[String(s.id)] = s; });
 
-  // Build unique clients map
+  // Build unique clients map keyed by phone digits (or telegram or name)
   const clientMap = {};
-  allBookings.forEach(b => {
-    if (b.status === 'deleted_by_admin') return;
-    const key = (b.phone || '').replace(/\D/g, '') || b.telegram || b.name;
-    if (!key) return;
+  bookings.forEach(b => {
+    try {
+      if (!b || b.status === 'deleted_by_admin') return;
+      const key = (String(b.phone || '').replace(/\D/g, '')) || String(b.telegram || '') || String(b.name || '');
+      if (!key) return;
 
-    if (!clientMap[key]) {
-      clientMap[key] = { name: b.name || '—', phone: b.phone || '', telegram: b.telegram || '', chatId: b.chatId || '', totalBookings: 0, confirmedSessions: 0, lastDate: '', types: {} };
-    }
-    const c = clientMap[key];
-    if ((b.name || '').length > c.name.length) c.name = b.name;
-    if (b.chatId && !c.chatId) c.chatId = b.chatId;
-    if (b.telegram && !c.telegram) c.telegram = b.telegram;
-    c.totalBookings++;
+      if (!clientMap[key]) {
+        clientMap[key] = { name: b.name || '—', phone: b.phone || '', telegram: b.telegram || '', chatId: b.chatId || '', confirmedSessions: 0, lastDate: '', types: {} };
+      }
+      const c = clientMap[key];
+      if (String(b.name || '').length > c.name.length) c.name = b.name;
+      if (b.chatId && !c.chatId) c.chatId = b.chatId;
+      if (b.telegram && !c.telegram) c.telegram = b.telegram;
 
-    if (b.status === 'confirmed') {
-      const slotIds = String(b.slotIds || '').split(',').map(x => x.trim()).filter(Boolean);
-      c.confirmedSessions += slotIds.length || 1;
-      const t = b.trainingType || 'Не указан';
-      c.types[t] = (c.types[t] || 0) + 1;
-
-      // Get actual date from slotMap
-      slotIds.forEach(sid => {
-        const slot = slotMap[sid];
-        if (slot && slot.date && slot.date > c.lastDate) {
-          c.lastDate = slot.date;
-        }
-      });
-    }
+      if (b.status === 'confirmed') {
+        const slotIds = String(b.slotIds || '').split(',').map(x => x.trim()).filter(Boolean);
+        c.confirmedSessions += slotIds.length || 1;
+        const t = b.trainingType || 'Не указан';
+        c.types[t] = (c.types[t] || 0) + 1;
+        slotIds.forEach(sid => {
+          const slot = slotMap[sid];
+          if (slot && slot.date && String(slot.date) > c.lastDate) c.lastDate = String(slot.date);
+        });
+      }
+    } catch(e) { /* skip bad booking */ }
   });
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const isActive = (c) => c.lastDate && new Date(c.lastDate + 'T00:00:00') >= thirtyDaysAgo;
+  const isActive = (c) => { try { return c.lastDate && new Date(c.lastDate + 'T00:00:00') >= thirtyDaysAgo; } catch(e) { return false; } };
 
   let clients = Object.values(clientMap);
-
-  const q = (clientSearch || '').toLowerCase();
-  if (q) clients = clients.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q) || c.telegram.toLowerCase().includes(q));
+  const q = (clientSearch || '').toLowerCase().trim();
+  if (q) clients = clients.filter(c =>
+    c.name.toLowerCase().includes(q) ||
+    c.phone.includes(q) ||
+    (c.telegram || '').toLowerCase().includes(q)
+  );
 
   clients.sort((a, b) => {
-    if (clientSort === 'sessions') return b.confirmedSessions - a.confirmedSessions;
-    if (clientSort === 'lastDate') return b.lastDate.localeCompare(a.lastDate);
-    if (clientSort === 'name') return a.name.localeCompare(b.name, 'ru');
+    try {
+      if (clientSort === 'sessions') return b.confirmedSessions - a.confirmedSessions;
+      if (clientSort === 'lastDate') return String(b.lastDate).localeCompare(String(a.lastDate));
+      if (clientSort === 'name') return String(a.name).localeCompare(String(b.name), 'ru');
+    } catch(e) {}
     return 0;
   });
 
   const activeCount = clients.filter(isActive).length;
-  const totalSessions = clients.reduce((s, c) => s + c.confirmedSessions, 0);
+  const totalSessions = clients.reduce((s, c) => s + (c.confirmedSessions || 0), 0);
 
   const formatLastDate = (dateStr) => {
-    if (!dateStr) return '—';
-    const months = ['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-    const p = dateStr.split('-');
-    if (p.length < 3) return '—';
-    return `${parseInt(p[2])} ${months[parseInt(p[1])]} ${p[0]}`;
+    try {
+      if (!dateStr) return '—';
+      const months = ['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+      const p = String(dateStr).split('-');
+      if (p.length < 3) return '—';
+      return `${parseInt(p[2])} ${months[parseInt(p[1])]} ${p[0]}`;
+    } catch(e) { return '—'; }
   };
 
   const getFavoriteType = (types) => {
-    const entries = Object.entries(types);
-    if (!entries.length) return null;
-    return entries.sort((a, b) => b[1] - a[1])[0][0];
+    try {
+      const entries = Object.entries(types || {});
+      if (!entries.length) return null;
+      return entries.sort((a, b) => b[1] - a[1])[0][0];
+    } catch(e) { return null; }
   };
 
   return (
     <>
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="bg-white p-4 rounded-2xl text-center shadow-sm">
-          <div className="text-2xl font-black">{clients.length}</div>
-          <div className="text-xs text-gray-500 mt-1">Всего клиентов</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div style={{ background: '#fff', padding: 16, borderRadius: 16, textAlign: 'center', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+          <div style={{ fontSize: 24, fontWeight: 900 }}>{clients.length}</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>Клиентов</div>
         </div>
-        <div className="bg-green-50 p-4 rounded-2xl text-center border border-green-200">
-          <div className="text-2xl font-black text-green-700">{activeCount}</div>
-          <div className="text-xs text-green-600 mt-1">Активных</div>
+        <div style={{ background: '#f0fdf4', padding: 16, borderRadius: 16, textAlign: 'center', border: '1px solid #bbf7d0' }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#16a34a' }}>{activeCount}</div>
+          <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>Активных</div>
         </div>
-        <div className="bg-black p-4 rounded-2xl text-center">
-          <div className="text-2xl font-black text-white">{totalSessions}</div>
-          <div className="text-xs text-gray-400 mt-1">Тренировок</div>
+        <div style={{ background: '#111', padding: 16, borderRadius: 16, textAlign: 'center' }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: '#fff' }}>{totalSessions}</div>
+          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>Тренировок</div>
         </div>
       </div>
 
       {/* Search + sort */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
+      <div style={{ background: '#fff', padding: 16, borderRadius: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 16 }}>
         <input type="text" placeholder="🔍 Имя, телефон или @telegram"
-          value={clientSearch} onChange={e => setClientSearch(e.target.value)}
+          value={clientSearch || ''} onChange={e => setClientSearch(e.target.value)}
           style={{ width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
-        <div className="flex gap-2 flex-wrap">
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {[{ key: 'sessions', label: '🏆 По тренировкам' }, { key: 'lastDate', label: '📅 По дате' }, { key: 'name', label: '🔤 По имени' }].map(s => (
-            <button key={s.key} onClick={() => setClientSort(s.key)} style={{ padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: clientSort === s.key ? '#111' : '#f3f4f6', color: clientSort === s.key ? '#fff' : '#6b7280' }}>
+            <button key={s.key} onClick={() => setClientSort(s.key)}
+              style={{ padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: clientSort === s.key ? '#111' : '#f3f4f6', color: clientSort === s.key ? '#fff' : '#6b7280' }}>
               {s.label}
             </button>
           ))}
@@ -218,51 +247,54 @@ const ClientsTab = ({ allBookings, hockeySlots, clientSearch, setClientSearch, c
 
       {/* Cards */}
       {clients.length === 0 ? (
-        <div className="bg-white p-10 rounded-2xl text-center text-gray-400">
-          <p className="text-4xl mb-3">👥</p>
-          <p className="font-medium text-gray-500">{clientSearch ? 'Никого не найдено' : 'Клиентов пока нет'}</p>
+        <div style={{ background: '#fff', padding: '40px 24px', borderRadius: 16, textAlign: 'center', color: '#9ca3af' }}>
+          <p style={{ fontSize: 36, marginBottom: 12 }}>👥</p>
+          <p style={{ fontWeight: 600, color: '#6b7280' }}>{q ? 'Никого не найдено' : 'Клиентов пока нет'}</p>
+          {!q && <p style={{ fontSize: 13, marginTop: 6 }}>Клиенты появятся после первых подтверждённых записей</p>}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {clients.map((c, idx) => {
             const active = isActive(c);
             const favType = getFavoriteType(c.types);
+            const earned = (c.confirmedSessions || 0) * (PRICE_PER_SESSION || 2000);
             return (
               <div key={idx} style={{ background: '#fff', borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 8px rgba(0,0,0,0.05)', borderLeft: `3px solid ${active ? '#22c55e' : '#e5e7eb'}` }}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
                     <Avatar name={c.name} size={38} />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <p style={{ fontWeight: 800, fontSize: 14, color: '#111' }}>{c.name}</p>
                         <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: active ? '#f0fdf4' : '#f9fafb', color: active ? '#16a34a' : '#9ca3af', border: `1px solid ${active ? '#bbf7d0' : '#f0f0f0'}` }}>
                           {active ? '● Активный' : '○ Неактивный'}
                         </span>
                       </div>
-                      {c.phone && (
-                        <button onClick={() => navigator.clipboard.writeText(c.phone).then(() => showToast(`📞 ${c.phone} скопирован`, 'success')).catch(() => {})}
-                          style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 2 }}>
+                      {c.phone ? (
+                        <button onClick={() => { try { navigator.clipboard.writeText(c.phone).then(() => showToast && showToast(`📞 ${c.phone} скопирован`, 'success')); } catch(e){} }}
+                          style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 3, display: 'block' }}>
                           📞 {c.phone}
                         </button>
-                      )}
-                      {c.telegram && (
-                        <p style={{ fontSize: 12, color: '#3b82f6', marginTop: 1 }}>
-                          <a href={`https://t.me/${c.telegram}`} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none' }}>✈️ @{c.telegram}</a>
-                        </p>
-                      )}
+                      ) : null}
+                      {c.telegram ? (
+                        <a href={`https://t.me/${c.telegram.replace('@','')}`} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize: 12, color: '#3b82f6', textDecoration: 'none', display: 'block', marginTop: 2 }}>
+                          ✈️ @{c.telegram.replace('@','')}
+                        </a>
+                      ) : null}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontSize: 22, fontWeight: 900, color: '#111', lineHeight: 1 }}>{c.confirmedSessions}</div>
-                    <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 1 }}>тренировок</div>
+                    <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>тренировок</div>
                   </div>
                 </div>
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     {favType && <span style={{ fontSize: 11, color: '#6b7280', background: '#f9fafb', border: '1px solid #f0f0f0', padding: '3px 8px', borderRadius: 8 }}>{favType}</span>}
                     <span style={{ fontSize: 11, color: '#9ca3af' }}>Последняя: {formatLastDate(c.lastDate)}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{(c.confirmedSessions * PRICE_PER_SESSION).toLocaleString('ru-RU')} ₽</div>
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>{earned.toLocaleString('ru-RU')} ₽</span>
                 </div>
               </div>
             );
@@ -1868,7 +1900,7 @@ const BookingSystem = () => {
 
             {/* ========== FINANCE TAB ========== */}
             {/* ========== CLIENTS TAB ========== */}
-            {adminTab === 'clients' && <ClientsTab
+            {adminTab === 'clients' && <ErrorBoundary><ClientsTab
               allBookings={allBookings}
               hockeySlots={hockeySlots}
               clientSearch={clientSearch}
@@ -1877,7 +1909,7 @@ const BookingSystem = () => {
               setClientSort={setClientSort}
               showToast={showToast}
               PRICE_PER_SESSION={PRICE_PER_SESSION}
-            />}
+            /></ErrorBoundary>}
 
             {adminTab === 'finance' && (() => {
               const now = new Date();
