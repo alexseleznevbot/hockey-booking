@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbyd6d32W1VT5kcbpQ1FZUt-wFTn81dDR9vNStqcvulobgbVIzRfF3gCiGwTk1gCyv4D3w/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -155,6 +155,8 @@ const BookingSystem = () => {
   const [adminTab, setAdminTab] = useState('main');
   const [historyFilter, setHistoryFilter] = useState('all');
   const [financeFilter, setFinanceFilter] = useState('month');
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientSort, setClientSort] = useState('sessions'); // 'sessions' | 'lastDate' | 'name'
 
   // Цена за одну тренировку (меняется здесь)
   const PRICE_PER_SESSION = 2000;
@@ -626,8 +628,33 @@ const BookingSystem = () => {
               <div style={{ marginLeft: 'auto', fontSize: 20, opacity: 0.5 }}>›</div>
             </button>
 
+            {/* Abonements button */}
+            <button
+              onClick={() => setView('abonements')}
+              className="w-full mb-3 fade-up fade-up-3"
+              style={{
+                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                color: '#fff', borderRadius: 16, padding: '16px 24px',
+                display: 'flex', alignItems: 'center', gap: 16,
+                border: 'none', cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.12)'
+              }}
+            >
+              <div style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: 'rgba(255,215,0,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 22, flexShrink: 0
+              }}>🎁</div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>Абонементы</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,215,0,0.75)', marginTop: 1 }}>5 занятий + 1 в подарок</div>
+              </div>
+              <div style={{ marginLeft: 'auto', fontSize: 20, opacity: 0.4 }}>›</div>
+            </button>
+
             {/* Location card */}
-            <div className="fade-up fade-up-3" style={{
+            <div className="fade-up fade-up-4" style={{
               background: '#f9fafb', borderRadius: 14,
               padding: '14px 16px', display: 'flex', alignItems: 'center',
               gap: 12, border: '1px solid #f0f0f0'
@@ -1123,6 +1150,21 @@ const BookingSystem = () => {
                   );
                 })()}
 
+                {/* Abonement banner */}
+                <div
+                  onClick={() => setView('abonements')}
+                  style={{
+                    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                    borderRadius: 14, padding: '12px 14px', marginBottom: 10,
+                    display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer'
+                  }}>
+                  <div style={{ fontSize: 24 }}>🎁</div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 2 }}>Купи 5 — получи 6-е в подарок</p>
+                    <p style={{ fontSize: 11, color: 'rgba(255,215,0,0.75)' }}>Узнать про абонементы →</p>
+                  </div>
+                </div>
+
                 <button onClick={submitBooking} disabled={loading || !clientForm.name || !clientForm.phone || (() => {
                   const objs = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
                   const allHockey = objs.length > 0 && objs.every(s => isHockeyHour(s.date, s.time, s));
@@ -1140,6 +1182,178 @@ const BookingSystem = () => {
               </div>
             </div>
           )}
+        </div>
+      </>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  ABONEMENTS VIEW
+  // ═══════════════════════════════════════════════════════
+  if (view === 'abonements') {
+    const packages = [
+      {
+        id: 'single',
+        emoji: '🏒',
+        title: 'Разовое занятие',
+        sessions: 1,
+        gift: 0,
+        price: 2000,
+        pricePerSession: 2000,
+        accent: '#f3f4f6',
+        textColor: '#111',
+        badge: null,
+      },
+      {
+        id: 'pack5',
+        emoji: '⭐',
+        title: 'Абонемент 5+1',
+        sessions: 5,
+        gift: 1,
+        price: 10000,
+        pricePerSession: 1667,
+        accent: '#111',
+        textColor: '#fff',
+        badge: '🔥 Хит',
+        badgeColor: '#fbbf24',
+      },
+      {
+        id: 'pack10',
+        emoji: '🏆',
+        title: 'Абонемент 10+2',
+        sessions: 10,
+        gift: 2,
+        price: 20000,
+        pricePerSession: 1667,
+        accent: '#0f172a',
+        textColor: '#fff',
+        badge: '💎 Максимум',
+        badgeColor: '#818cf8',
+      },
+    ];
+
+    return (
+      <>
+        <style>{styles}</style>
+        {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+        <div className="min-h-screen flex flex-col" style={{ background: '#f9fafb' }}>
+
+          {/* Top stripe */}
+          <div style={{ height: 4, background: '#111' }} />
+
+          {/* Header */}
+          <div style={{ background: '#fff', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f0f0f0' }}>
+            <button onClick={() => setView('select')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, color: '#111', fontSize: 20, lineHeight: 1 }}>←</button>
+            <div>
+              <p style={{ fontSize: 16, fontWeight: 900, color: '#111' }}>Абонементы</p>
+              <p style={{ fontSize: 11, color: '#9ca3af' }}>Тренируйся выгоднее</p>
+            </div>
+          </div>
+
+          <div style={{ padding: '20px 16px', flex: 1 }}>
+
+            {/* Hero banner */}
+            <div style={{
+              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+              borderRadius: 20, padding: '24px 20px', marginBottom: 20, textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>🎁</div>
+              <p style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 6 }}>Купи 5 — получи 6-е бесплатно</p>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>Оплати абонемент тренеру напрямую и экономь на каждой тренировке</p>
+            </div>
+
+            {/* Package cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              {packages.map(pkg => (
+                <div key={pkg.id} style={{
+                  background: pkg.accent, borderRadius: 18, padding: '18px 20px',
+                  boxShadow: pkg.id !== 'single' ? '0 4px 20px rgba(0,0,0,0.12)' : 'none',
+                  border: pkg.id === 'single' ? '1px solid #e5e7eb' : 'none',
+                  position: 'relative', overflow: 'hidden'
+                }}>
+                  {pkg.badge && (
+                    <div style={{
+                      position: 'absolute', top: 14, right: 14,
+                      background: pkg.badgeColor, color: '#111',
+                      fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20
+                    }}>{pkg.badge}</div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 14,
+                      background: pkg.id === 'single' ? '#f3f4f6' : 'rgba(255,255,255,0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24
+                    }}>{pkg.emoji}</div>
+                    <div>
+                      <p style={{ fontSize: 16, fontWeight: 900, color: pkg.textColor }}>{pkg.title}</p>
+                      <p style={{ fontSize: 12, color: pkg.id === 'single' ? '#9ca3af' : 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                        {pkg.sessions} занятий{pkg.gift > 0 ? ` + ${pkg.gift} в подарок` : ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ fontSize: 28, fontWeight: 900, color: pkg.textColor, lineHeight: 1 }}>
+                        {pkg.price.toLocaleString('ru-RU')} ₽
+                      </p>
+                      {pkg.gift > 0 && (
+                        <p style={{ fontSize: 11, marginTop: 4, color: pkg.id !== 'single' ? 'rgba(255,255,255,0.5)' : '#9ca3af' }}>
+                          {pkg.pricePerSession.toLocaleString('ru-RU')} ₽ / занятие
+                        </p>
+                      )}
+                    </div>
+                    {pkg.gift > 0 && (
+                      <div style={{
+                        background: pkg.id !== 'single' ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
+                        borderRadius: 10, padding: '6px 12px', textAlign: 'center'
+                      }}>
+                        <p style={{ fontSize: 18, fontWeight: 900, color: pkg.id !== 'single' ? '#fbbf24' : '#111' }}>
+                          -{Math.round((1 - pkg.pricePerSession / 2000) * 100)}%
+                        </p>
+                        <p style={{ fontSize: 10, color: pkg.id !== 'single' ? 'rgba(255,255,255,0.5)' : '#9ca3af' }}>экономия</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* How it works */}
+            <div style={{ background: '#fff', borderRadius: 18, padding: '18px 20px', marginBottom: 20 }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#111', marginBottom: 14 }}>Как это работает</p>
+              {[
+                { icon: '💬', text: 'Напишите тренеру и выберите абонемент' },
+                { icon: '💳', text: 'Оплатите удобным способом' },
+                { icon: '📅', text: 'Записывайтесь на занятия как обычно' },
+                { icon: '🎁', text: 'Бонусное занятие — в любое удобное время' },
+              ].map((step, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: i < 3 ? 12 : 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{step.icon}</div>
+                  <p style={{ fontSize: 13, color: '#374151' }}>{step.text}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA */}
+            <a
+              href="https://t.me/seleznev_88"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                background: '#111', color: '#fff', borderRadius: 16, padding: '16px',
+                fontWeight: 800, fontSize: 15, textDecoration: 'none',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.15)'
+              }}>
+              ✈️ Написать тренеру в Telegram
+            </a>
+
+            <p style={{ textAlign: 'center', fontSize: 11, color: '#9ca3af', marginTop: 12 }}>
+              @seleznev_88 • отвечает в течение дня
+            </p>
+          </div>
         </div>
       </>
     );
@@ -1214,6 +1428,7 @@ const BookingSystem = () => {
               <div className="flex gap-2">
                 <button onClick={() => setAdminTab('main')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'main' ? 'bg-black text-white' : 'bg-gray-100'}`}><Calendar size={16} /> Главная</button>
                 <button onClick={() => setAdminTab('history')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'history' ? 'bg-black text-white' : 'bg-gray-100'}`}><Users size={16} /> Записи ({allBookings.length})</button>
+                <button onClick={() => setAdminTab('clients')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'clients' ? 'bg-black text-white' : 'bg-gray-100'}`}>👥 Клиенты</button>
                 <button onClick={() => setAdminTab('finance')} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminTab === 'finance' ? 'bg-black text-white' : 'bg-gray-100'}`}>💰 Финансы</button>
               </div>
             </div>
@@ -1493,6 +1708,230 @@ const BookingSystem = () => {
             )}
 
             {/* ========== FINANCE TAB ========== */}
+            {/* ========== CLIENTS TAB ========== */}
+            {adminTab === 'clients' && (() => {
+              const today = getTodayStr();
+
+              // Собираем уникальных клиентов из allBookings
+              const clientMap = {};
+              allBookings.forEach(b => {
+                if (b.status === 'deleted_by_admin') return;
+                const key = (b.phone || '').replace(/\D/g, '') || b.telegram || b.name;
+                if (!key) return;
+
+                if (!clientMap[key]) {
+                  clientMap[key] = {
+                    name: b.name || '—',
+                    phone: b.phone || '',
+                    telegram: b.telegram || '',
+                    totalBookings: 0,
+                    confirmedSessions: 0,
+                    lastDate: '',
+                    lastStatus: '',
+                    types: {},
+                    chatId: b.chatId || ''
+                  };
+                }
+                const c = clientMap[key];
+
+                // Обновляем имя если более полное
+                if ((b.name || '').length > c.name.length) c.name = b.name;
+                if (b.chatId && !c.chatId) c.chatId = b.chatId;
+                if (b.telegram && !c.telegram) c.telegram = b.telegram;
+
+                c.totalBookings++;
+
+                // Подсчёт подтверждённых занятий (слотов)
+                if (b.status === 'confirmed') {
+                  const slots = String(b.slotIds || '').split(',').filter(Boolean);
+                  c.confirmedSessions += slots.length || 1;
+                  // Тип тренировки
+                  const t = b.trainingType || 'Не указан';
+                  c.types[t] = (c.types[t] || 0) + 1;
+                }
+
+                // Последняя дата (из slotIds)
+                const slotParts = String(b.slotIds || '').split(',')[0].trim().split('-');
+                if (slotParts.length >= 3) {
+                  const slotDate = `${slotParts[0]}-${slotParts[1]}-${slotParts[2]}`;
+                  if (slotDate > c.lastDate) {
+                    c.lastDate = slotDate;
+                    c.lastStatus = b.status;
+                  }
+                }
+              });
+
+              let clients = Object.values(clientMap);
+
+              // Поиск
+              const q = clientSearch.toLowerCase();
+              if (q) {
+                clients = clients.filter(c =>
+                  c.name.toLowerCase().includes(q) ||
+                  c.phone.includes(q) ||
+                  c.telegram.toLowerCase().includes(q)
+                );
+              }
+
+              // Сортировка
+              clients.sort((a, b) => {
+                if (clientSort === 'sessions') return b.confirmedSessions - a.confirmedSessions;
+                if (clientSort === 'lastDate') return b.lastDate.localeCompare(a.lastDate);
+                if (clientSort === 'name') return a.name.localeCompare(b.name, 'ru');
+                return 0;
+              });
+
+              // Определяем «активный» — был в последние 30 дней
+              const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+              const isActive = (c) => c.lastDate && new Date(c.lastDate + 'T00:00:00') >= thirtyDaysAgo;
+
+              const activeCount = clients.filter(isActive).length;
+              const totalSessions = clients.reduce((s, c) => s + c.confirmedSessions, 0);
+
+              const formatLastDate = (dateStr) => {
+                if (!dateStr) return '—';
+                const months = ['','янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+                const p = dateStr.split('-');
+                return `${parseInt(p[2])} ${months[parseInt(p[1])]} ${p[0]}`;
+              };
+
+              const getFavoriteType = (types) => {
+                const entries = Object.entries(types);
+                if (!entries.length) return null;
+                return entries.sort((a,b) => b[1]-a[1])[0][0];
+              };
+
+              return (
+                <>
+                  {/* Summary stats */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="bg-white p-4 rounded-2xl text-center shadow-sm">
+                      <div className="text-2xl font-black">{clients.length}</div>
+                      <div className="text-xs text-gray-500 mt-1">Всего клиентов</div>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-2xl text-center border border-green-200">
+                      <div className="text-2xl font-black text-green-700">{activeCount}</div>
+                      <div className="text-xs text-green-600 mt-1">Активных</div>
+                    </div>
+                    <div className="bg-black p-4 rounded-2xl text-center">
+                      <div className="text-2xl font-black text-white">{totalSessions}</div>
+                      <div className="text-xs text-gray-400 mt-1">Тренировок</div>
+                    </div>
+                  </div>
+
+                  {/* Search + sort */}
+                  <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
+                    <input
+                      type="text"
+                      placeholder="🔍 Имя, телефон или @telegram"
+                      value={clientSearch}
+                      onChange={e => setClientSearch(e.target.value)}
+                      style={{ width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', marginBottom: 10, boxSizing: 'border-box' }}
+                    />
+                    <div className="flex gap-2">
+                      {[
+                        { key: 'sessions', label: '🏆 По тренировкам' },
+                        { key: 'lastDate', label: '📅 По дате' },
+                        { key: 'name', label: '🔤 По имени' },
+                      ].map(s => (
+                        <button key={s.key} onClick={() => setClientSort(s.key)}
+                          style={{
+                            padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                            border: 'none', cursor: 'pointer',
+                            background: clientSort === s.key ? '#111' : '#f3f4f6',
+                            color: clientSort === s.key ? '#fff' : '#6b7280',
+                          }}>
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Client cards */}
+                  {clients.length === 0 ? (
+                    <div className="bg-white p-10 rounded-2xl text-center text-gray-400">
+                      <p className="text-4xl mb-3">👥</p>
+                      <p className="font-medium text-gray-500">
+                        {clientSearch ? 'Никого не найдено' : 'Клиентов пока нет'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {clients.map((c, idx) => {
+                        const active = isActive(c);
+                        const favType = getFavoriteType(c.types);
+                        return (
+                          <div key={idx} style={{
+                            background: '#fff', borderRadius: 16, padding: '14px 16px',
+                            boxShadow: '0 1px 8px rgba(0,0,0,0.05)',
+                            borderLeft: `3px solid ${active ? '#22c55e' : '#e5e7eb'}`
+                          }}>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <Avatar name={c.name} size={38} />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p style={{ fontWeight: 800, fontSize: 14, color: '#111' }}>{c.name}</p>
+                                    <span style={{
+                                      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                                      background: active ? '#f0fdf4' : '#f9fafb',
+                                      color: active ? '#16a34a' : '#9ca3af',
+                                      border: `1px solid ${active ? '#bbf7d0' : '#f0f0f0'}`
+                                    }}>
+                                      {active ? '● Активный' : '○ Неактивный'}
+                                    </span>
+                                  </div>
+                                  {c.phone && (
+                                    <button
+                                      onClick={() => navigator.clipboard.writeText(c.phone).then(() => showToast(`📞 ${c.phone} скопирован`, 'success'))}
+                                      style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 2 }}>
+                                      📞 {c.phone}
+                                    </button>
+                                  )}
+                                  {c.telegram && (
+                                    <p style={{ fontSize: 12, color: '#3b82f6', marginTop: 1 }}>
+                                      <a href={`https://t.me/${c.telegram}`} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none' }}>
+                                        ✈️ @{c.telegram}
+                                      </a>
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Stats column */}
+                              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <div style={{ fontSize: 22, fontWeight: 900, color: '#111', lineHeight: 1 }}>
+                                  {c.confirmedSessions}
+                                </div>
+                                <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 1 }}>тренировок</div>
+                              </div>
+                            </div>
+
+                            {/* Bottom row */}
+                            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                {favType && (
+                                  <span style={{ fontSize: 11, color: '#6b7280', background: '#f9fafb', border: '1px solid #f0f0f0', padding: '3px 8px', borderRadius: 8 }}>
+                                    {favType}
+                                  </span>
+                                )}
+                                <span style={{ fontSize: 11, color: '#9ca3af' }}>
+                                  Последняя: {formatLastDate(c.lastDate)}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                                {(c.confirmedSessions * PRICE_PER_SESSION).toLocaleString('ru-RU')} ₽
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
             {adminTab === 'finance' && (() => {
               const now = new Date();
 
