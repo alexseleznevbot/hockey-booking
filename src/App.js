@@ -351,6 +351,18 @@ const BookingSystem = () => {
 
   // Цена за одну тренировку (меняется здесь)
   const PRICE_PER_SESSION = 2000;
+  const BOOKING_CUTOFF_HOURS = 1.5; // Запись закрывается за 1:30 до занятия
+
+  // Returns true if slot is still open for booking (more than CUTOFF hours away)
+  const isSlotBookable = (dateStr, timeStr) => {
+    try {
+      const [h, m] = timeStr.split(':').map(Number);
+      const slotDate = new Date(dateStr + 'T00:00:00');
+      slotDate.setHours(h, m, 0, 0);
+      const cutoff = new Date(slotDate.getTime() - BOOKING_CUTOFF_HOURS * 60 * 60 * 1000);
+      return new Date() < cutoff;
+    } catch (e) { return true; }
+  };
 
   const [adminCancelModal, setAdminCancelModal] = useState({ open: false, booking: null });
   const [adminCancelReason, setAdminCancelReason] = useState('');
@@ -678,8 +690,12 @@ const BookingSystem = () => {
     return { daysInMonth: new Date(year, month + 1, 0).getDate(), startingDayOfWeek: firstDay === 0 ? 6 : firstDay - 1 };
   };
 
-  const getAvailableDates = () => [...new Set(hockeySlots.filter(s => s.status === 'available').map(s => s.date))];
-  const getSlotsForDate = (dateStr) => hockeySlots.filter(s => s.date === dateStr && s.status === 'available').sort((a, b) => a.time.localeCompare(b.time));
+  const getAvailableDates = () => [...new Set(
+    hockeySlots.filter(s => s.status === 'available' && isSlotBookable(s.date, s.time)).map(s => s.date)
+  )];
+  const getSlotsForDate = (dateStr) => hockeySlots
+    .filter(s => s.date === dateStr && s.status === 'available' && isSlotBookable(s.date, s.time))
+    .sort((a, b) => a.time.localeCompare(b.time));
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -1830,73 +1846,185 @@ const BookingSystem = () => {
               </>
             )}
 
-            {adminTab === 'history' && (
-              <>
-                <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
-                  <h2 className="font-bold mb-3 flex items-center gap-2"><List size={20} /> Фильтр</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { key: 'all', label: 'Все', count: allBookings.length },
-                      { key: 'pending', label: '⏳ Ожидают', count: allBookings.filter(b => b.status === 'pending').length },
-                      { key: 'confirmed', label: '✅ Подтв.', count: allBookings.filter(b => b.status === 'confirmed').length },
-                      { key: 'cancellation_requested', label: '⚠️ Запрос', count: allBookings.filter(b => b.status === 'cancellation_requested').length },
-                      { key: 'cancelled', label: '🚫 Отмена', count: allBookings.filter(b => b.status === 'cancelled' || b.status === 'cancelled_by_admin').length },
-                      { key: 'rejected', label: '❌ Откл.', count: allBookings.filter(b => b.status === 'rejected').length },
-                    ].map(f => (
-                      <button key={f.key} onClick={() => setHistoryFilter(f.key)} className={`px-3 py-2 rounded-xl text-sm ${historyFilter === f.key ? 'bg-black text-white' : 'bg-gray-100'}`}>
-                        {f.label} ({f.count})
-                      </button>
-                    ))}
+            {adminTab === 'history' && (() => {
+              const today = getTodayStr();
+
+              // Get first slot date for a booking
+              const getFirstSlotDate = (booking) => {
+                const slots = parseSlotIds(booking.slotIds);
+                return slots.length > 0 && slots[0].date ? slots[0].date : '';
+              };
+
+              // Filter by status
+              const statusFiltered = allBookings.filter(b => {
+                if (historyFilter === 'all') return true;
+                if (historyFilter === 'cancellation_requested') return b.status === 'cancellation_requested';
+                if (historyFilter === 'cancelled') return b.status === 'cancelled' || b.status === 'cancelled_by_admin';
+                return b.status === historyFilter;
+              });
+
+              // Split upcoming vs past based on first slot date
+              const upcomingBookings = statusFiltered
+                .filter(b => getFirstSlotDate(b) >= today)
+                .sort((a, b) => getFirstSlotDate(a).localeCompare(getFirstSlotDate(b)));
+
+              const pastBookings = statusFiltered
+                .filter(b => getFirstSlotDate(b) < today && getFirstSlotDate(b) !== '')
+                .sort((a, b) => getFirstSlotDate(b).localeCompare(getFirstSlotDate(a)));
+
+              // Group by date
+              const groupByDate = (bookings) => {
+                const groups = {};
+                bookings.forEach(b => {
+                  const d = getFirstSlotDate(b) || 'unknown';
+                  if (!groups[d]) groups[d] = [];
+                  groups[d].push(b);
+                });
+                return groups;
+              };
+
+              const upcomingGroups = groupByDate(upcomingBookings);
+              const pastGroups = groupByDate(pastBookings);
+
+              const formatGroupDate = (dateStr) => {
+                if (!dateStr || dateStr === 'unknown') return 'Дата не указана';
+                const d = new Date(dateStr + 'T00:00:00');
+                const isToday = dateStr === today;
+                const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
+                const isTomorrow = dateStr === `${tmrw.getFullYear()}-${String(tmrw.getMonth()+1).padStart(2,'0')}-${String(tmrw.getDate()).padStart(2,'0')}`;
+                const base = d.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+                if (isToday) return `📅 Сегодня — ${base}`;
+                if (isTomorrow) return `📅 Завтра — ${base}`;
+                return base;
+              };
+
+              const BookingCard = ({ booking }) => {
+                const slots = parseSlotIds(booking.slotIds);
+                return (
+                  <div className={`bg-white p-4 rounded-2xl shadow-sm border-l-4 ${
+                    booking.status === 'confirmed' ? 'border-l-green-500' :
+                    booking.status === 'pending' ? 'border-l-yellow-500' :
+                    booking.status === 'cancellation_requested' ? 'border-l-orange-500' :
+                    'border-l-gray-300'
+                  }`}>
+                    <div className="flex justify-between items-start flex-wrap gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-bold text-lg">{booking.name}</p>
+                          {getStatusBadge(booking.status)}
+                        </div>
+                        <p className="text-gray-600 text-sm">📞 {booking.phone}</p>
+                        {booking.telegram && <p className="text-gray-600 text-sm">✈️ @{booking.telegram}</p>}
+                        <p className="text-gray-500 text-sm mt-1">🕐 {slots.map(s => s.time).join(', ')}</p>
+                        {booking.trainingType && <p className="text-gray-500 text-sm">{booking.trainingType}</p>}
+                        {booking.comment && <p className="text-gray-500 text-sm">💬 {booking.comment}</p>}
+                        <p className="text-gray-400 text-xs mt-2">Создано: {formatDateTime(booking.createdAt)}</p>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        {booking.phone && <button onClick={() => navigator.clipboard.writeText(booking.phone).then(() => showToast(`📞 ${booking.phone} скопирован`, 'success')).catch(() => showToast(`📞 ${booking.phone}`, 'info'))} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={18} /></button>}
+                        {booking.telegram && <a href={`https://t.me/${booking.telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg text-sm">✈️</a>}
+                        {booking.status === 'cancellation_requested' && (
+                          <button onClick={async () => {
+                            setLoading(true);
+                            const result = await api.post('adminApproveCancellationByBookingId', { adminSecret: ADMIN_SECRET, bookingId: booking.id });
+                            if (result.ok) { showToast('Отмена подтверждена', 'success'); await loadAllBookings(); await loadCancellations(); }
+                            else showToast('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
+                            setLoading(false);
+                          }} disabled={loading} className="px-3 py-2 bg-green-100 text-green-600 rounded-lg text-sm disabled:opacity-50" title="Подтвердить отмену">✅</button>
+                        )}
+                        {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                          <button onClick={() => setAdminCancelModal({ open: true, booking })} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm">🚫</button>
+                        )}
+                        <button onClick={() => setAdminDeleteModal({ open: true, bookingId: booking.id })} className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-red-100 hover:text-red-600 transition-all" title="Удалить из истории">🗑️</button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-3">
-                  {filteredBookings.length === 0 ? (
-                    <div className="bg-white p-8 rounded-2xl text-center text-gray-500">Нет записей</div>
-                  ) : filteredBookings.map(booking => {
-                    const slots = parseSlotIds(booking.slotIds);
-                    return (
-                      <div key={booking.id} className={`bg-white p-4 rounded-2xl shadow-sm border-l-4 ${
-                        booking.status === 'confirmed' ? 'border-l-green-500' :
-                        booking.status === 'pending' ? 'border-l-yellow-500' :
-                        booking.status === 'cancellation_requested' ? 'border-l-orange-500' :
-                        'border-l-gray-300'
-                      }`}>
-                        <div className="flex justify-between items-start flex-wrap gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="font-bold text-lg">{booking.name}</p>
-                              {getStatusBadge(booking.status)}
-                            </div>
-                            <p className="text-gray-600 text-sm">📞 {booking.phone}</p>
-                            {booking.telegram && <p className="text-gray-600 text-sm">✈️ @{booking.telegram}</p>}
-                            <p className="text-gray-500 text-sm mt-1">📅 {slots.map(s => `${s.date} ${s.time}`).join(', ')}</p>
-                            {booking.comment && <p className="text-gray-500 text-sm">💬 {booking.comment}</p>}
-                            <p className="text-gray-400 text-xs mt-2">Создано: {formatDateTime(booking.createdAt)}</p>
+                );
+              };
+
+              return (
+                <>
+                  {/* Filter */}
+                  <div className="bg-white p-4 rounded-2xl shadow-sm mb-4">
+                    <h2 className="font-bold mb-3 flex items-center gap-2"><List size={20} /> Фильтр</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { key: 'all', label: 'Все', count: allBookings.length },
+                        { key: 'pending', label: '⏳ Ожидают', count: allBookings.filter(b => b.status === 'pending').length },
+                        { key: 'confirmed', label: '✅ Подтв.', count: allBookings.filter(b => b.status === 'confirmed').length },
+                        { key: 'cancellation_requested', label: '⚠️ Запрос', count: allBookings.filter(b => b.status === 'cancellation_requested').length },
+                        { key: 'cancelled', label: '🚫 Отмена', count: allBookings.filter(b => b.status === 'cancelled' || b.status === 'cancelled_by_admin').length },
+                        { key: 'rejected', label: '❌ Откл.', count: allBookings.filter(b => b.status === 'rejected').length },
+                      ].map(f => (
+                        <button key={f.key} onClick={() => setHistoryFilter(f.key)} className={`px-3 py-2 rounded-xl text-sm ${historyFilter === f.key ? 'bg-black text-white' : 'bg-gray-100'}`}>
+                          {f.label} ({f.count})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Upcoming — grouped by day */}
+                  {Object.keys(upcomingGroups).length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div style={{ height: 2, flex: 1, background: '#111', borderRadius: 2 }} />
+                        <span className="text-xs font-black tracking-widest text-gray-800 uppercase">Предстоящие</span>
+                        <div style={{ height: 2, flex: 1, background: '#e5e7eb', borderRadius: 2 }} />
+                      </div>
+                      {Object.entries(upcomingGroups).map(([date, bookings]) => (
+                        <div key={date} className="mb-4">
+                          <div style={{
+                            background: '#111', color: '#fff',
+                            borderRadius: 12, padding: '8px 14px',
+                            fontSize: 13, fontWeight: 800,
+                            marginBottom: 8, display: 'flex',
+                            justifyContent: 'space-between', alignItems: 'center'
+                          }}>
+                            <span>{formatGroupDate(date)}</span>
+                            <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '2px 10px', fontSize: 12 }}>{bookings.length}</span>
                           </div>
-                          <div className="flex gap-2 flex-wrap">
-                            {booking.phone && <button onClick={() => navigator.clipboard.writeText(booking.phone).then(() => showToast(`📞 ${booking.phone} скопирован`, 'success')).catch(() => showToast(`📞 ${booking.phone}`, 'info'))} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Phone size={18} /></button>}
-                            {booking.telegram && <a href={`https://t.me/${booking.telegram}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-100 text-blue-600 rounded-lg text-sm">✈️</a>}
-                            {booking.status === 'cancellation_requested' && (
-                              <button onClick={async () => {
-                                setLoading(true);
-                                const result = await api.post('adminApproveCancellationByBookingId', { adminSecret: ADMIN_SECRET, bookingId: booking.id });
-                                if (result.ok) { showToast('Отмена подтверждена', 'success'); await loadAllBookings(); await loadCancellations(); }
-                                else showToast('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
-                                setLoading(false);
-                              }} disabled={loading} className="px-3 py-2 bg-green-100 text-green-600 rounded-lg text-sm disabled:opacity-50" title="Подтвердить отмену">✅</button>
-                            )}
-                            {(booking.status === 'confirmed' || booking.status === 'pending') && (
-                              <button onClick={() => setAdminCancelModal({ open: true, booking })} className="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm">🚫</button>
-                            )}
-                            <button onClick={() => setAdminDeleteModal({ open: true, bookingId: booking.id })} className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-red-100 hover:text-red-600 transition-all" title="Удалить из истории">🗑️</button>
+                          <div className="space-y-2">
+                            {bookings.map(b => <BookingCard key={b.id} booking={b} />)}
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Past — grouped by day, collapsed */}
+                  {Object.keys(pastGroups).length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div style={{ height: 2, flex: 1, background: '#e5e7eb', borderRadius: 2 }} />
+                        <span className="text-xs font-black tracking-widest text-gray-400 uppercase">Прошедшие</span>
+                        <div style={{ height: 2, flex: 1, background: '#e5e7eb', borderRadius: 2 }} />
                       </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+                      {Object.entries(pastGroups).map(([date, bookings]) => (
+                        <div key={date} className="mb-4">
+                          <div style={{
+                            background: '#f3f4f6', color: '#6b7280',
+                            borderRadius: 12, padding: '8px 14px',
+                            fontSize: 13, fontWeight: 700,
+                            marginBottom: 8, display: 'flex',
+                            justifyContent: 'space-between', alignItems: 'center'
+                          }}>
+                            <span>{formatGroupDate(date)}</span>
+                            <span style={{ background: 'rgba(0,0,0,0.07)', borderRadius: 20, padding: '2px 10px', fontSize: 12 }}>{bookings.length}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {bookings.map(b => <BookingCard key={b.id} booking={b} />)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {statusFiltered.length === 0 && (
+                    <div className="bg-white p-8 rounded-2xl text-center text-gray-500">Нет записей</div>
+                  )}
+                </>
+              );
+            })()}
 
             {/* ========== FINANCE TAB ========== */}
             {/* ========== CLIENTS TAB ========== */}
