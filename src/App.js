@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxtNsdm0g7fkJjcVBLBlqmSidoAb4zw4_s4LbW4Gd4wP1QKpbi5vArON-GIksn6X6RQ2Q/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -328,7 +328,8 @@ const BookingSystem = () => {
     name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '',
     phone: '+7',
     telegram: telegramUser?.username || '',
-    comment: ''
+    comment: '',
+    birthDate: ''
   });
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [trainingType, setTrainingType] = useState('');
@@ -371,6 +372,8 @@ const BookingSystem = () => {
   const [singleSlotDate, setSingleSlotDate] = useState('');
   const [singleSlotTime, setSingleSlotTime] = useState('');
   const [singleSlotIsHockey, setSingleSlotIsHockey] = useState(false);
+  const [slotCart, setSlotCart] = useState([]); // корзина слотов перед отправкой
+  const [notifyOnAdd, setNotifyOnAdd] = useState(true); // уведомлять клиентов при добавлении
 
   // Bookings filter tabs for "My bookings"
   const [myBookingsFilter, setMyBookingsFilter] = useState('upcoming');
@@ -527,22 +530,43 @@ const BookingSystem = () => {
     setLoading(false);
   };
 
-  const addSingleSlot = async () => {
+  // Добавить в корзину (без отправки на сервер)
+  const addToSlotCart = () => {
     if (!singleSlotDate) return showToast('Выберите дату', 'error');
     if (!singleSlotTime) return showToast('Выберите время', 'error');
+    const key = singleSlotDate + '|' + singleSlotTime;
+    if (slotCart.some(s => s.date === singleSlotDate && s.time === singleSlotTime))
+      return showToast('Этот слот уже в корзине', 'error');
+    setSlotCart(prev => [...prev, { date: singleSlotDate, time: singleSlotTime, isHockey: singleSlotIsHockey, key }]);
+    setSingleSlotDate(''); setSingleSlotTime(''); setSingleSlotIsHockey(false);
+    showToast('Слот добавлен в корзину', 'info');
+  };
+
+  // Отправить все слоты из корзины разом
+  const addSingleSlot = async () => {
+    const cart = slotCart.length > 0 ? slotCart : (
+      singleSlotDate && singleSlotTime
+        ? [{ date: singleSlotDate, time: singleSlotTime, isHockey: singleSlotIsHockey }]
+        : null
+    );
+    if (!cart || cart.length === 0) return showToast('Корзина пуста — добавьте слоты', 'error');
     setLoading(true);
-    const slotId = `${singleSlotDate}-${singleSlotTime}-${Date.now()}`;
+    const slots = cart.map(s => ({
+      date: s.date, time: s.time, isHockey: s.isHockey,
+      id: `${s.date}-${s.time}-${Date.now()}-${Math.random().toString(16).slice(2,6)}`
+    }));
     const result = await api.post('adminAddSlots', {
       adminSecret: ADMIN_SECRET,
-      slots: [{ date: singleSlotDate, time: singleSlotTime, id: slotId, isHockey: singleSlotIsHockey }],
-      notifySingleSlot: true
+      slots,
+      notifySingleSlot: notifyOnAdd && cart.length === 1,
+      notifyUsers: notifyOnAdd && cart.length > 1
     });
     if (result.ok) {
-      if (result.added === 0) showToast('Слот уже существует на это время', 'error');
+      if (result.added === 0) showToast('Все эти слоты уже существуют', 'error');
       else {
-        const notifyMsg = result.notified > 0 ? ` • Уведомлено: ${result.notified}` : '';
-        showToast(`Слот добавлен${singleSlotIsHockey ? ' 🏒' : ''}${notifyMsg}`, 'success');
-        setSingleSlotDate(''); setSingleSlotTime(''); setSingleSlotIsHockey(false);
+        const notifyMsg = result.notified > 0 ? ` • Уведомлено: ${result.notified}` : (notifyOnAdd ? '' : ' • без уведомлений');
+        showToast(`Добавлено ${result.added} слот(ов)${notifyMsg}`, 'success');
+        setSlotCart([]); setSingleSlotDate(''); setSingleSlotTime(''); setSingleSlotIsHockey(false);
       }
       await loadSlots();
     } else showToast('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
@@ -606,7 +630,7 @@ const BookingSystem = () => {
     const result = await api.post('createBooking', bookingData);
     if (result.ok) {
       setBookingSuccess(true); setSelectedSlots([]); setTrainingType('');
-      setClientForm({ name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', phone: '', telegram: telegramUser?.username || '', comment: '' });
+      setClientForm({ name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', phone: '', telegram: telegramUser?.username || '', comment: '', birthDate: '' });
       await loadSlots();
       if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     } else showToast('Ошибка: ' + result.error, 'error');
@@ -1328,6 +1352,20 @@ const BookingSystem = () => {
                   rows={2} maxLength={200}
                   style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', resize: 'none', marginBottom: 8, boxSizing: 'border-box' }} />
 
+                {/* Birthday field */}
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4, marginLeft: 2 }}>
+                    🎂 Дата рождения (для поздравления)
+                  </label>
+                  <input
+                    type="date"
+                    value={clientForm.birthDate}
+                    onChange={e => setClientForm({ ...clientForm, birthDate: e.target.value })}
+                    max={new Date().toISOString().split('T')[0]}
+                    style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', boxSizing: 'border-box', color: clientForm.birthDate ? '#111' : '#9ca3af' }}
+                  />
+                </div>
+
                 {/* Training type */}
                 {(() => {
                   const objs = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
@@ -1770,19 +1808,55 @@ const BookingSystem = () => {
                 <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
                   <h2 className="font-bold mb-4 flex items-center gap-2"><Plus size={20} /> Добавить слоты</h2>
                   <div className="bg-gray-50 p-4 rounded-xl mb-4">
-                    <p className="text-sm font-medium mb-3">➕ Добавить один слот</p>
+                    <p className="text-sm font-medium mb-3">➕ Добавить слоты</p>
                     <div className="flex gap-2 mb-2">
                       <input type="date" value={singleSlotDate} onChange={e => setSingleSlotDate(e.target.value)} min={today} className="flex-1 p-2 border-2 rounded-lg text-sm" />
                       <input type="time" value={singleSlotTime} onChange={e => setSingleSlotTime(e.target.value)} step="60" className="flex-1 p-2 border-2 rounded-lg text-sm" />
                     </div>
-                    <label className="flex items-center gap-2 mb-3 cursor-pointer">
-                      <input type="checkbox" checked={singleSlotIsHockey} onChange={e => setSingleSlotIsHockey(e.target.checked)} className="w-4 h-4 rounded" />
-                      <span className="text-sm">🏒 Хоккейный час</span>
-                    </label>
-                    {singleSlotDate && singleSlotTime && <p className="text-xs text-gray-500 mb-2">📅 {singleSlotDate} в {singleSlotTime}</p>}
-                    <button onClick={addSingleSlot} disabled={!singleSlotDate || !singleSlotTime || loading} className="w-full bg-blue-500 text-white p-2 rounded-lg text-sm disabled:opacity-50">
-                      {loading ? '⏳' : !singleSlotDate ? '📅 Выберите дату' : !singleSlotTime ? '🕐 Выберите время' : '✅ Добавить слот'}
-                    </button>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={singleSlotIsHockey} onChange={e => setSingleSlotIsHockey(e.target.checked)} className="w-4 h-4 rounded" />
+                        <span className="text-sm">🏒 Хоккейный час</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={notifyOnAdd} onChange={e => setNotifyOnAdd(e.target.checked)} className="w-4 h-4 rounded" />
+                        <span className="text-sm text-gray-600">🔔 Уведомить клиентов</span>
+                      </label>
+                    </div>
+
+                    {/* Slot cart */}
+                    {slotCart.length > 0 && (
+                      <div className="bg-white border border-blue-200 rounded-xl p-3 mb-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="text-xs font-bold text-blue-700">🛒 Корзина ({slotCart.length})</p>
+                          <button onClick={() => setSlotCart([])} className="text-xs text-red-400 hover:text-red-600">Очистить</button>
+                        </div>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {slotCart.map((s, i) => (
+                            <div key={s.key} className="flex justify-between items-center text-xs bg-blue-50 rounded-lg px-2 py-1">
+                              <span>📅 {s.date} ⏰ {s.time}{s.isHockey ? ' 🏒' : ''}</span>
+                              <button onClick={() => setSlotCart(prev => prev.filter((_, idx) => idx !== i))} className="text-red-400 ml-2">✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button onClick={addToSlotCart} disabled={!singleSlotDate || !singleSlotTime || loading}
+                        className="flex-1 bg-gray-200 text-gray-700 p-2 rounded-lg text-sm disabled:opacity-50 font-medium">
+                        {!singleSlotDate || !singleSlotTime ? '+ В корзину' : `+ В корзину`}
+                      </button>
+                      <button onClick={addSingleSlot} disabled={loading || (slotCart.length === 0 && (!singleSlotDate || !singleSlotTime))}
+                        className="flex-1 bg-blue-500 text-white p-2 rounded-lg text-sm disabled:opacity-50 font-medium">
+                        {loading ? '⏳' : slotCart.length > 0
+                          ? `✅ Добавить ${slotCart.length} слот(ов)`
+                          : singleSlotDate && singleSlotTime ? '✅ Добавить' : '✅ Добавить'
+                        }
+                      </button>
+                    </div>
+                    {!notifyOnAdd && <p className="text-xs text-gray-400 mt-2 text-center">🔕 Клиенты не получат уведомления</p>}
+                    {notifyOnAdd && slotCart.length > 1 && <p className="text-xs text-green-600 mt-2 text-center">✅ Придёт 1 уведомление на все {slotCart.length} слота</p>}
                   </div>
                   <button onClick={addWeekSlots} disabled={loading} className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-xl font-bold mb-4 disabled:opacity-50">
                     {loading ? '...' : '📅 Добавить неделю (стандартное расписание)'}
