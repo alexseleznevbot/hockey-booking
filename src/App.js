@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxtNsdm0g7fkJjcVBLBlqmSidoAb4zw4_s4LbW4Gd4wP1QKpbi5vArON-GIksn6X6RQ2Q/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -491,15 +491,22 @@ const BookingSystem = () => {
   };
 
   const loadMyRefData = async () => {
-    if (!telegramUser?.chatId) return;
+    if (!telegramUser?.chatId) {
+      showToast('Откройте приложение через Telegram', 'error');
+      return;
+    }
     try {
       const r = await api.post('getMyRefCode', { chatId: telegramUser.chatId });
-      if (r.ok) {
-        setMyRefCode(r.refCode || '');
+      if (r.ok && r.refCode) {
+        setMyRefCode(r.refCode);
         setMyRefCount(r.refCount || 0);
         setMyRefDiscount(r.refDiscount || 0);
+      } else {
+        showToast('Не удалось получить ссылку', 'error');
       }
-    } catch(e) {}
+    } catch(e) {
+      showToast('Ошибка сети', 'error');
+    }
   };
 
   const loadMyStreakData = async () => {
@@ -1160,8 +1167,11 @@ const BookingSystem = () => {
                       </button>
                     </>
                   ) : (
-                    <button onClick={loadMyRefData} style={{ fontSize: 11, color: '#7c3aed', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                      Получить мою ссылку →
+                    <button
+                      onClick={loadMyRefData}
+                      style={{ fontSize: 13, color: '#fff', background: '#7c3aed', border: 'none', borderRadius: 10, padding: '9px 14px', cursor: 'pointer', fontWeight: 700, width: '100%', marginTop: 4 }}
+                    >
+                      🔗 Получить мою ссылку
                     </button>
                   )}
                 </div>
