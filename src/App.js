@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbxtNsdm0g7fkJjcVBLBlqmSidoAb4zw4_s4LbW4Gd4wP1QKpbi5vArON-GIksn6X6RQ2Q/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -151,7 +151,7 @@ const ClientsTab = ({ allBookings, hockeySlots, clientSearch, setClientSearch, c
       if (!key) return;
 
       if (!clientMap[key]) {
-        clientMap[key] = { name: b.name || '—', phone: b.phone || '', telegram: b.telegram || '', chatId: b.chatId || '', confirmedSessions: 0, lastDate: '', types: {} };
+        clientMap[key] = { name: b.name || '—', phone: b.phone || '', telegram: b.telegram || '', chatId: b.chatId || '', confirmedSessions: 0, lastDate: '', types: {}, ratings: [], streak: 0 };
       }
       const c = clientMap[key];
       if (String(b.name || '').length > c.name.length) c.name = b.name;
@@ -163,6 +163,7 @@ const ClientsTab = ({ allBookings, hockeySlots, clientSearch, setClientSearch, c
         c.confirmedSessions += slotIds.length || 1;
         const t = b.trainingType || 'Не указан';
         c.types[t] = (c.types[t] || 0) + 1;
+        if (b.rating) { const r = parseInt(b.rating, 10); if (r >= 1 && r <= 5) c.ratings.push(r); }
         slotIds.forEach(sid => {
           const slot = slotMap[sid];
           if (slot && slot.date && String(slot.date) > c.lastDate) c.lastDate = String(slot.date);
@@ -258,6 +259,9 @@ const ClientsTab = ({ allBookings, hockeySlots, clientSearch, setClientSearch, c
             const active = isActive(c);
             const favType = getFavoriteType(c.types);
             const earned = (c.confirmedSessions || 0) * (PRICE_PER_SESSION || 2000);
+            const avgRating = c.ratings && c.ratings.length > 0
+              ? (c.ratings.reduce((s, r) => s + r, 0) / c.ratings.length)
+              : 0;
             return (
               <div key={idx} style={{ background: '#fff', borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 8px rgba(0,0,0,0.05)', borderLeft: `3px solid ${active ? '#22c55e' : '#e5e7eb'}` }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
@@ -290,9 +294,11 @@ const ClientsTab = ({ allBookings, hockeySlots, clientSearch, setClientSearch, c
                   </div>
                 </div>
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     {favType && <span style={{ fontSize: 11, color: '#6b7280', background: '#f9fafb', border: '1px solid #f0f0f0', padding: '3px 8px', borderRadius: 8 }}>{favType}</span>}
-                    <span style={{ fontSize: 11, color: '#9ca3af' }}>Последняя: {formatLastDate(c.lastDate)}</span>
+                    {c.streak > 0 && <span style={{ fontSize: 11, background: '#fff7ed', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: 8, color: '#ea580c', fontWeight: 700 }}>🔥 {c.streak}</span>}
+                    {avgRating > 0 && <span style={{ fontSize: 11, background: '#fefce8', border: '1px solid #fde68a', padding: '3px 8px', borderRadius: 8, color: '#a16207' }}>⭐ {avgRating.toFixed(1)}</span>}
+                    <span style={{ fontSize: 11, color: '#9ca3af' }}>📅 {formatLastDate(c.lastDate)}</span>
                   </div>
                   <span style={{ fontSize: 11, color: '#9ca3af' }}>{earned.toLocaleString('ru-RU')} ₽</span>
                 </div>
@@ -374,6 +380,14 @@ const BookingSystem = () => {
   const [singleSlotIsHockey, setSingleSlotIsHockey] = useState(false);
   const [slotCart, setSlotCart] = useState([]); // корзина слотов перед отправкой
   const [notifyOnAdd, setNotifyOnAdd] = useState(true); // уведомлять клиентов при добавлении
+  // Реферал
+  const [refCode, setRefCode] = useState(''); // код реферера из URL
+  const [myRefCode, setMyRefCode] = useState(''); // мой реф.код
+  const [myRefCount, setMyRefCount] = useState(0);
+  const [myRefDiscount, setMyRefDiscount] = useState(0);
+  // Streak
+  const [myStreak, setMyStreak] = useState(0);
+  const [myMaxStreak, setMyMaxStreak] = useState(0);
 
   // Bookings filter tabs for "My bookings"
   const [myBookingsFilter, setMyBookingsFilter] = useState('upcoming');
@@ -435,6 +449,16 @@ const BookingSystem = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Read ref code from URL (?ref=CODE or Telegram ?startapp=ref_CODE)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref') || params.get('startapp') || '';
+      if (ref && ref.indexOf('ref_') === 0) setRefCode(ref.replace('ref_', ''));
+      else if (ref) setRefCode(ref);
+    } catch(e) {}
+  }, []);
+
   const loadSlots = async () => {
     setLoading(true);
     const result = await api.get('getSlots');
@@ -464,6 +488,29 @@ const BookingSystem = () => {
     const result = await api.get('getBookingsByPhone', { phone: phone.replace(/\D/g, '') });
     setHockeyBookings(result.ok ? result.bookings || [] : []);
     setLoading(false);
+  };
+
+  const loadMyRefData = async () => {
+    if (!telegramUser?.chatId) return;
+    try {
+      const r = await api.post('getMyRefCode', { chatId: telegramUser.chatId });
+      if (r.ok) {
+        setMyRefCode(r.refCode || '');
+        setMyRefCount(r.refCount || 0);
+        setMyRefDiscount(r.refDiscount || 0);
+      }
+    } catch(e) {}
+  };
+
+  const loadMyStreakData = async () => {
+    if (!telegramUser?.chatId) return;
+    try {
+      const r = await api.get('getUserData', { chatId: telegramUser.chatId });
+      if (r.ok && r.user) {
+        setMyStreak(parseInt(r.user.streakCount || '0', 10));
+        setMyMaxStreak(parseInt(r.user.maxStreak || '0', 10));
+      }
+    } catch(e) {}
   };
 
   const loadBookingsByChatId = async (chatId) => {
@@ -626,11 +673,14 @@ const BookingSystem = () => {
     else if (trainingType === 'ofp') trainingTypeLabel = '🏋️ ОФП';
     else if (trainingType === 'shooting') trainingTypeLabel = '🎯 Бросковая зона';
     const bookingData = { slotIds: selectedSlots, ...clientForm, trainingType: trainingTypeLabel };
+    if (refCode) bookingData.refCode = refCode;
     if (telegramUser?.chatId) bookingData.chatId = telegramUser.chatId;
     const result = await api.post('createBooking', bookingData);
     if (result.ok) {
       setBookingSuccess(true); setSelectedSlots([]); setTrainingType('');
       setClientForm({ name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', phone: '', telegram: telegramUser?.username || '', comment: '', birthDate: '' });
+      if (refCode) setRefCode(''); // сбрасываем реф.код после использования
+      if (result.refDiscount > 0) showToast(`🎁 Скидка ${result.refDiscount}% применена!`, 'success');
       await loadSlots();
       if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     } else showToast('Ошибка: ' + result.error, 'error');
@@ -1049,18 +1099,71 @@ const BookingSystem = () => {
             </div>
 
             <div style={{ padding: '16px 20px 32px' }}>
-              {/* Telegram user card */}
+              {/* Telegram user card with streak */}
               {isTelegramWebApp && telegramUser && (
                 <div className="fade-up" style={{
                   background: 'linear-gradient(135deg, #f0fdf4, #f9fafb)',
                   border: '1px solid #dcfce7', borderRadius: 14,
-                  padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16
+                  padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10
                 }}>
                   <Avatar name={`${telegramUser.firstName} ${telegramUser.lastName}`} size={36} />
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>{telegramUser.firstName} {telegramUser.lastName}</p>
                     {telegramUser.username && <p style={{ fontSize: 11, color: '#16a34a' }}>@{telegramUser.username}</p>}
                   </div>
+                  {myStreak > 0 && (
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: 18, lineHeight: 1 }}>🔥</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#ea580c' }}>{myStreak}</p>
+                      <p style={{ fontSize: 9, color: '#9ca3af' }}>серия</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Streak card */}
+              {myStreak >= 2 && (
+                <div className="fade-up" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 14, padding: '12px 14px', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: '#9a3412' }}>🔥 Серия: {myStreak} занятий подряд</p>
+                      <p style={{ fontSize: 11, color: '#c2410c' }}>Рекорд: {myMaxStreak} · продолжай тренироваться!</p>
+                    </div>
+                    <div style={{ fontSize: 28 }}>
+                      {myStreak >= 10 ? '🏆' : myStreak >= 5 ? '🥇' : '🔥'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Referral block */}
+              {isTelegramWebApp && telegramUser?.chatId && (
+                <div className="fade-up" style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 14, padding: '12px 14px', marginBottom: 16 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#5b21b6', marginBottom: 4 }}>👥 Пригласи друга — получи скидку 20%</p>
+                  {myRefCode ? (
+                    <>
+                      <p style={{ fontSize: 11, color: '#7c3aed', marginBottom: 6 }}>
+                        Ты пригласил: <b>{myRefCount}</b> чел. · Скидка: <b>{myRefDiscount}%</b>
+                      </p>
+                      <button
+                        onClick={() => {
+                          const link = `https://t.me/SHSHockeyBot?start=ref_${myRefCode}`;
+                          if (navigator.share) {
+                            navigator.share({ title: 'Хоккейные тренировки', text: 'Записывайся на тренировки по моей ссылке!', url: link });
+                          } else {
+                            navigator.clipboard.writeText(link).then(() => showToast('Ссылка скопирована!', 'success'));
+                          }
+                        }}
+                        style={{ width: '100%', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        📤 Поделиться ссылкой
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={loadMyRefData} style={{ fontSize: 11, color: '#7c3aed', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      Получить мою ссылку →
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1162,7 +1265,7 @@ const BookingSystem = () => {
                   style={{ padding: 8, color: '#2563eb', borderRadius: 10, background: '#eff6ff', display: 'flex' }}>
                   <Send size={16} />
                 </a>
-                <button onClick={() => setShowMyBookings(true)}
+                <button onClick={() => { setShowMyBookings(true); loadMyRefData(); loadMyStreakData(); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, background: '#f3f4f6', padding: '8px 12px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
                   <History size={14} /> Мои записи
                 </button>
@@ -1317,6 +1420,27 @@ const BookingSystem = () => {
               animation: 'slideDown 0.25s ease'
             }}>
               <div className="max-w-lg mx-auto">
+                {/* ── Шапка формы: кнопка Назад + выбранные слоты ── */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <button
+                    onClick={() => setSelectedSlots([])}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#f3f4f6', border: 'none', borderRadius: 10, padding: '7px 12px', fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer' }}
+                  >
+                    <ArrowLeft size={15} /> Изменить время
+                  </button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'flex-end' }}>
+                    {selectedSlots.map(sid => {
+                      const slot = hockeySlots.find(s => s.id === sid);
+                      if (!slot) return null;
+                      return (
+                        <span key={sid} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#15803d', fontWeight: 600 }}>
+                          {slot.date.slice(5).replace('-', '.')} {slot.time}
+                          <button onClick={() => setSelectedSlots(p => p.filter(id => id !== sid))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }}>×</button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                   <input type="text" placeholder="Имя Фамилия *" value={clientForm.name}
                     onChange={e => setClientForm({ ...clientForm, name: e.target.value })}
