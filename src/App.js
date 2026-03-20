@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbxtNsdm0g7fkJjcVBLBlqmSidoAb4zw4_s4LbW4Gd4wP1QKpbi5vArON-GIksn6X6RQ2Q/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -312,7 +312,12 @@ const ClientsTab = ({ allBookings, hockeySlots, clientSearch, setClientSearch, c
 };
 
 const BookingSystem = () => {
-  const [view, setView] = useState('select');
+  // Онбординг: показываем один раз при первом визите
+  const isFirstVisit = (() => {
+    try { return !localStorage.getItem('shs_onboarded'); } catch(e) { return false; }
+  })();
+  const [view, setView] = useState(isFirstVisit ? 'onboarding' : 'select');
+  const [onboardStep, setOnboardStep] = useState(0);
   const [adminPassword, setAdminPassword] = useState('');
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -859,6 +864,165 @@ const BookingSystem = () => {
   // ═══════════════════════════════════════════════════════
   //  SELECT VIEW  (Variant B — Clean Sport)
   // ═══════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
+  //  ONBOARDING VIEW  — показывается один раз при первом визите
+  // ═══════════════════════════════════════════════════════
+  if (view === 'onboarding') {
+    const finishOnboarding = () => {
+      try { localStorage.setItem('shs_onboarded', '1'); } catch(e) {}
+      setView('select');
+    };
+
+    const steps = [
+      {
+        emoji: '👋',
+        title: 'Привет!',
+        subtitle: 'Я Александр Селезнев — хоккейный тренер с 15-летним опытом.',
+        body: 'Тренирую взрослых и детей на катке «Галактика» в Мытищах. Персональный подход к каждому — независимо от уровня.',
+        cta: 'Далее',
+        accent: '#111',
+      },
+      {
+        emoji: '🏒',
+        title: 'Что мы тренируем',
+        subtitle: 'Четыре направления под любой уровень и цель.',
+        body: null,
+        cards: [
+          { icon: '⛸️', label: 'Катание', desc: 'Техника, баланс, уверенность на льду' },
+          { icon: '🏋️', label: 'ОФП', desc: 'Сила, выносливость, скорость' },
+          { icon: '🎯', label: 'Бросковая', desc: 'Точность и мощь броска' },
+          { icon: '🏒', label: 'Хоккейный час', desc: 'Игровая практика в малой группе' },
+        ],
+        cta: 'Далее',
+        accent: '#111',
+      },
+      {
+        emoji: '📅',
+        title: 'Как записаться',
+        subtitle: 'Всё просто — занимает меньше минуты.',
+        body: null,
+        steps2: [
+          { n: '1', text: 'Выберите дату — зелёные дни уже доступны' },
+          { n: '2', text: 'Выберите время и тип тренировки' },
+          { n: '3', text: 'Введите имя и телефон — нажмите «Записаться»' },
+          { n: '4', text: 'Тренер подтвердит — придёт уведомление' },
+        ],
+        cta: 'Начать',
+        accent: '#16a34a',
+      },
+    ];
+
+    const step = steps[onboardStep];
+    const isLast = onboardStep === steps.length - 1;
+
+    return (
+      <>
+        <style>{styles}</style>
+        <div style={{ minHeight: '100vh', background: '#fff', display: 'flex', flexDirection: 'column' }}>
+          {/* Top bar */}
+          <div style={{ height: 4, background: '#111' }} />
+
+          {/* Skip */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 20px 0' }}>
+            <button onClick={finishOnboarding} style={{ background: 'none', border: 'none', fontSize: 13, color: '#9ca3af', cursor: 'pointer', padding: '4px 8px' }}>
+              Пропустить
+            </button>
+          </div>
+
+          {/* Content */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '24px 24px 32px' }}>
+
+            {/* Progress dots */}
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 36 }}>
+              {steps.map((_, i) => (
+                <div key={i} style={{
+                  width: i === onboardStep ? 24 : 8, height: 8,
+                  borderRadius: 4, background: i === onboardStep ? '#111' : '#e5e7eb',
+                  transition: 'all 0.3s ease'
+                }} />
+              ))}
+            </div>
+
+            {/* Emoji */}
+            <div style={{ fontSize: 64, textAlign: 'center', marginBottom: 20, lineHeight: 1 }}>
+              {step.emoji}
+            </div>
+
+            {/* Title + subtitle */}
+            <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.5px', textAlign: 'center', margin: '0 0 8px', color: '#111' }}>
+              {step.title}
+            </h1>
+            <p style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 24, lineHeight: 1.5 }}>
+              {step.subtitle}
+            </p>
+
+            {/* Body text */}
+            {step.body && (
+              <div style={{ background: '#f9fafb', borderRadius: 14, padding: '16px 18px', marginBottom: 16, border: '1px solid #f0f0f0' }}>
+                <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, margin: 0 }}>{step.body}</p>
+              </div>
+            )}
+
+            {/* Training type cards */}
+            {step.cards && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                {step.cards.map((c, i) => (
+                  <div key={i} style={{ background: '#f9fafb', borderRadius: 12, padding: '12px 14px', border: '1px solid #f0f0f0' }}>
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>{c.icon}</div>
+                    <p style={{ fontWeight: 800, fontSize: 13, color: '#111', margin: '0 0 3px' }}>{c.label}</p>
+                    <p style={{ fontSize: 11, color: '#9ca3af', margin: 0, lineHeight: 1.4 }}>{c.desc}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* How-to steps */}
+            {step.steps2 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {step.steps2.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: '#f9fafb', borderRadius: 12, padding: '11px 14px', border: '1px solid #f0f0f0' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#111', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {s.n}
+                    </div>
+                    <p style={{ fontSize: 13, color: '#374151', margin: 0, lineHeight: 1.4, paddingTop: 2 }}>{s.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ flex: 1 }} />
+
+            {/* CTA button */}
+            <button
+              onClick={() => {
+                if (isLast) { finishOnboarding(); loadSlots(); }
+                else setOnboardStep(s => s + 1);
+              }}
+              style={{
+                width: '100%', background: step.accent, color: '#fff',
+                border: 'none', borderRadius: 16, padding: '18px',
+                fontSize: 16, fontWeight: 800, cursor: 'pointer',
+                marginTop: 24,
+                transition: 'transform 0.1s',
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              {isLast ? '🏒 Записаться на тренировку' : step.cta + ' →'}
+            </button>
+
+            {/* Back */}
+            {onboardStep > 0 && (
+              <button onClick={() => setOnboardStep(s => s - 1)} style={{ background: 'none', border: 'none', fontSize: 13, color: '#9ca3af', cursor: 'pointer', margin: '12px auto 0', display: 'block' }}>
+                ← Назад
+              </button>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
+
   if (view === 'select') {
     return (
       <>
