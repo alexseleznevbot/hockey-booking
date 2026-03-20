@@ -782,11 +782,16 @@ const BookingSystem = () => {
     return { daysInMonth: new Date(year, month + 1, 0).getDate(), startingDayOfWeek: firstDay === 0 ? 6 : firstDay - 1 };
   };
 
+  // Все даты у которых есть доступные слоты (включая заблокированные выходные — они нужны для замка в календаре)
   const getAvailableDates = () => [...new Set(
+    hockeySlots.filter(s => s.status === 'available' && isSlotBookable(s.date, s.time)).map(s => s.date)
+  )];
+  // Только разблокированные даты (для полосы недели — там замок не показывается)
+  const getBookableDates = () => [...new Set(
     hockeySlots.filter(s => {
       if (s.status !== 'available') return false;
       if (!isSlotBookable(s.date, s.time)) return false;
-      if (isWeekend(s.date) && !areWeekendsOpen()) return false; // заблокированные выходные
+      if (isWeekend(s.date) && !areWeekendsOpen()) return false;
       return true;
     }).map(s => s.date)
   )];
@@ -1553,8 +1558,7 @@ hockey-booking.vercel.app`;
                       const d = new Date(todayDate);
                       d.setDate(todayDate.getDate() + i);
                       const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                      const isLockedWe = (d.getDay() === 0 || d.getDay() === 6) && !areWeekendsOpen();
-                      strip.push({ ds, day: d.getDate(), label: dayLabels[d.getDay()], avail: availableDates.includes(ds) && !isLockedWe, isToday: i === 0 });
+                      strip.push({ ds, day: d.getDate(), label: dayLabels[d.getDay()], avail: getBookableDates().includes(ds), isToday: i === 0 });
                     }
                     const hasAny = strip.some(s => s.avail);
                     if (!hasAny) return null;
