@@ -1176,44 +1176,96 @@ const BookingSystem = () => {
 
     // ── Booking success screen ──────────────────────────
     if (bookingSuccess) {
+      const firstName = clientForm.name ? clientForm.name.trim().split(' ')[0] : (telegramUser?.firstName || '');
+      // Собираем детали последней записи для карточки
+      const lastSlot = hockeySlots.find(s => s.id === selectedSlots[0]) ||
+        (hockeyBookings[0] ? hockeySlots.find(s => String(hockeyBookings[0].slotIds || '').split(',')[0].trim() === s.id) : null);
+      const lastDate = lastSlot ? new Date(lastSlot.date + 'T00:00:00') : null;
+      const dayNamesRu = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+      const monthNamesRu2 = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
       return (
         <>
           <style>{styles}</style>
+          <style>{`
+            @keyframes bounceIn {
+              0%{transform:scale(0.5);opacity:0}
+              60%{transform:scale(1.2)}
+              80%{transform:scale(0.95)}
+              100%{transform:scale(1);opacity:1}
+            }
+          `}</style>
           <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
             <div style={{ height: 4, background: '#111', position: 'absolute', top: 0, left: 0, right: 0 }} />
-            <div className="w-full max-w-sm text-center fade-up">
-              <div style={{
-                width: 72, height: 72, borderRadius: '50%',
-                background: '#f0fdf4', border: '2px solid #bbf7d0',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 20px'
-              }}>
-                <CheckCircle size={36} color="#22c55e" />
-              </div>
-              <h2 style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.5px', marginBottom: 6 }}>Заявка отправлена!</h2>
-              <p style={{ color: '#9ca3af', fontSize: 14, marginBottom: 28 }}>Ожидайте подтверждения от тренера</p>
+            <div className="w-full max-w-sm fade-up">
 
-              {isTelegramWebApp && telegramUser?.chatId && (
-                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '12px 16px', marginBottom: 16, textAlign: 'left' }}>
-                  <p style={{ color: '#1d4ed8', fontSize: 13 }}>✅ Уведомления будут приходить в этот чат</p>
+              {/* Emoji + заголовок */}
+              <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                <div style={{ fontSize: 52, marginBottom: 12, animation: 'bounceIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}>🎉</div>
+                <h2 style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.5px', marginBottom: 6 }}>
+                  {firstName ? `Готово, ${firstName}!` : 'Заявка отправлена!'}
+                </h2>
+                <p style={{ color: '#9ca3af', fontSize: 13 }}>Тренер подтвердит запись в течение часа</p>
+              </div>
+
+              {/* Тёмная карточка-билет */}
+              <div style={{
+                background: 'linear-gradient(135deg, #111 0%, #374151 100%)',
+                borderRadius: 18, padding: '18px 20px', marginBottom: 12
+              }}>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, marginBottom: 10 }}>ВАША ЗАПИСЬ</div>
+                {lastDate ? (
+                  <>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: '#fff', marginBottom: 4 }}>
+                      {dayNamesRu[lastDate.getDay()]}, {lastDate.getDate()} {monthNamesRu2[lastDate.getMonth()]}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>
+                      {lastSlot?.time}{trainingType === 'skating' ? ' · ⛸️ Катание' : trainingType === 'ofp' ? ' · 🏋️ ОФП' : trainingType === 'shooting' ? ' · 🎯 Бросковая' : isHockeyHour(lastSlot?.date, lastSlot?.time, lastSlot) ? ' · 🏒 Хоккейный час' : ''} · Галактика
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 12 }}>Каток «Галактика», г. Мытищи</div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Тренер</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>Александр Селезнев</span>
+                </div>
+              </div>
+
+              {/* Streak если есть */}
+              {myStreak >= 2 && (
+                <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '12px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ fontSize: 24 }}>🔥</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#9a3412' }}>Серия {myStreak} занятий!</div>
+                    <div style={{ fontSize: 11, color: '#c2410c' }}>Так держать, не останавливайся</div>
+                  </div>
                 </div>
               )}
 
-              <div style={{ background: '#f9fafb', borderRadius: 14, padding: '14px 16px', marginBottom: 20, textAlign: 'left', border: '1px solid #f0f0f0' }}>
-                <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>📍 Место</p>
-                <p style={{ fontWeight: 700, fontSize: 14, color: '#111' }}>Каток «Галактика»</p>
-                <p style={{ color: '#9ca3af', fontSize: 13 }}>г. Мытищи, ТЦ Июнь</p>
-              </div>
+              {/* Уведомления Telegram */}
+              {isTelegramWebApp && telegramUser?.chatId && (
+                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
+                  <p style={{ color: '#1d4ed8', fontSize: 12 }}>✅ Уведомление придёт в этот чат когда тренер подтвердит</p>
+                </div>
+              )}
 
-              <a href={`https://t.me/${TRAINER_TELEGRAM}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', background: '#2563eb', color: '#fff', padding: '14px', borderRadius: 14, fontWeight: 700, fontSize: 14, marginBottom: 10, textDecoration: 'none' }}>
-                <Send size={17} /> Связаться с тренером
-              </a>
+              {/* Кнопки */}
+              <button
+                onClick={() => {
+                  const text = `Тренируюсь у Александра Селезнева 🏒${lastDate ? `
+${dayNamesRu[lastDate.getDay()]}, ${lastDate.getDate()} ${monthNamesRu2[lastDate.getMonth()]}` : ''}
+hockey-booking.vercel.app`;
+                  if (navigator.share) navigator.share({ title: 'Хоккейные тренировки', text });
+                  else navigator.clipboard?.writeText(text).then(() => showToast('Скопировано!', 'success'));
+                }}
+                style={{ width: '100%', background: '#111', color: '#fff', padding: '14px', borderRadius: 14, fontWeight: 800, fontSize: 14, border: 'none', cursor: 'pointer', marginBottom: 8 }}>
+                📸 Поделиться
+              </button>
               <button onClick={() => { setBookingSuccess(false); loadSlots(); }}
-                style={{ width: '100%', background: '#111', color: '#fff', padding: '14px', borderRadius: 14, fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', marginBottom: 10 }}>
+                style={{ width: '100%', background: '#f3f4f6', color: '#374151', padding: '12px', borderRadius: 14, fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', marginBottom: 8 }}>
                 Записаться ещё
               </button>
-              <button onClick={() => setBookingSuccess(false)} style={{ color: '#9ca3af', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer' }}>Закрыть</button>
+              <button onClick={() => setBookingSuccess(false)} style={{ color: '#9ca3af', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', display: 'block', margin: '0 auto' }}>Закрыть</button>
             </div>
           </div>
         </>
@@ -1477,6 +1529,40 @@ const BookingSystem = () => {
 
                 {/* Calendar */}
                 <div className="fade-up fade-up-2" style={{ background: '#fff', border: '1px solid #f3f4f6', borderRadius: 16, padding: '16px', marginBottom: 14, boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
+
+                  {/* Week strip — ближайшие 5 дней */}
+                  {(() => {
+                    const strip = [];
+                    const todayDate = new Date();
+                    const dayLabels = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+                    for (let i = 0; i < 5; i++) {
+                      const d = new Date(todayDate);
+                      d.setDate(todayDate.getDate() + i);
+                      const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                      strip.push({ ds, day: d.getDate(), label: dayLabels[d.getDay()], avail: availableDates.includes(ds), isToday: i === 0 });
+                    }
+                    const hasAny = strip.some(s => s.avail);
+                    if (!hasAny) return null;
+                    return (
+                      <div style={{ background: '#f8fafc', borderRadius: 12, padding: 8, marginBottom: 14, display: 'flex', gap: 4 }}>
+                        {strip.map(s => (
+                          <button key={s.ds} onClick={() => s.avail && setClientSelectedDate(s.ds)}
+                            disabled={!s.avail}
+                            style={{
+                              flex: 1, borderRadius: 9, padding: '6px 2px', textAlign: 'center',
+                              border: 'none', cursor: s.avail ? 'pointer' : 'default',
+                              background: clientSelectedDate === s.ds ? '#111' : s.isToday && s.avail ? '#f0fdf4' : 'transparent',
+                              transition: 'all 0.15s'
+                            }}>
+                            <div style={{ fontSize: 9, color: clientSelectedDate === s.ds ? 'rgba(255,255,255,0.6)' : '#9ca3af', marginBottom: 2 }}>{s.label}</div>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: clientSelectedDate === s.ds ? '#fff' : s.avail ? '#111' : '#d1d5db' }}>{s.day}</div>
+                            {s.avail && <div style={{ width: 4, height: 4, borderRadius: '50%', background: clientSelectedDate === s.ds ? '#4ade80' : '#22c55e', margin: '3px auto 0' }} />}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <button onClick={() => setClientMonth(new Date(clientMonth.getFullYear(), clientMonth.getMonth() - 1))}
                       style={{ background: '#f9fafb', border: '1px solid #f0f0f0', borderRadius: 10, padding: '6px 10px', cursor: 'pointer', display: 'flex' }}>
@@ -1545,28 +1631,48 @@ const BookingSystem = () => {
                   )}
                 </div>
 
-                {/* Time slots */}
+                {/* Time slots — vertical cards */}
                 {clientSelectedDate && (
                   <div className="fade-up" style={{ background: '#fff', border: '1px solid #f3f4f6', borderRadius: 16, padding: 16, marginBottom: 14, boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
                     <h3 style={{ fontWeight: 800, fontSize: 14, marginBottom: 12, letterSpacing: '-0.2px' }}>{formatDate(clientSelectedDate)}</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {getSlotsForDate(clientSelectedDate).map(slot => {
                         const isHockey = isHockeyHour(clientSelectedDate, slot.time, slot);
                         const isSelected = selectedSlots.includes(slot.id);
+                        const typeLabel = isHockey ? '🏒 Хоккейный час' : '⛸️ Катание / ОФП / Бросковая';
                         return (
                           <button key={slot.id}
                             onClick={() => setSelectedSlots(p => p.includes(slot.id) ? p.filter(id => id !== slot.id) : [...p, slot.id])}
                             style={{
-                              padding: '12px 14px', borderRadius: 12, fontSize: 13, fontWeight: 700,
-                              background: isSelected ? '#111' : isHockey ? '#eff6ff' : '#f9fafb',
-                              color: isSelected ? '#fff' : isHockey ? '#1d4ed8' : '#374151',
-                              border: isSelected ? 'none' : isHockey ? '1px solid #bfdbfe' : '1px solid #f0f0f0',
+                              width: '100%', padding: '12px 16px', borderRadius: 14,
+                              background: isSelected ? '#111' : isHockey ? '#f0f9ff' : '#f9fafb',
+                              border: isSelected ? 'none' : isHockey ? '1.5px solid #bae6fd' : '1px solid #f0f0f0',
                               cursor: 'pointer', textAlign: 'left',
-                              transition: 'all 0.12s',
-                              transform: isSelected ? 'scale(1.02)' : 'scale(1)'
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              transition: 'all 0.15s',
+                              transform: isSelected ? 'scale(1.01)' : 'scale(1)'
                             }}>
-                            <div>{slot.time}</div>
-                            {isHockey && <div style={{ fontSize: 10, marginTop: 3, opacity: 0.8 }}>🏒 Хоккейный час</div>}
+                            <div>
+                              <div style={{ fontSize: 16, fontWeight: 900, color: isSelected ? '#fff' : isHockey ? '#0369a1' : '#111', letterSpacing: '-0.3px' }}>
+                                {slot.time}
+                              </div>
+                              <div style={{ fontSize: 11, marginTop: 3, color: isSelected ? 'rgba(255,255,255,0.6)' : isHockey ? '#0284c7' : '#9ca3af' }}>
+                                {typeLabel}
+                              </div>
+                            </div>
+                            <div>
+                              {isSelected ? (
+                                <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700, color: '#fff' }}>
+                                  Выбрано ✓
+                                </div>
+                              ) : isHockey ? (
+                                <div style={{ background: '#0ea5e9', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>
+                                  Спец.
+                                </div>
+                              ) : (
+                                <div style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px solid #e5e7eb' }} />
+                              )}
+                            </div>
                           </button>
                         );
                       })}
@@ -1594,27 +1700,28 @@ const BookingSystem = () => {
               animation: 'slideDown 0.25s ease'
             }}>
               <div className="max-w-lg mx-auto">
-                {/* ── Шапка формы: кнопка Назад + выбранные слоты ── */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <button
-                    onClick={() => setSelectedSlots([])}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#f3f4f6', border: 'none', borderRadius: 10, padding: '7px 12px', fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer' }}
-                  >
-                    <ArrowLeft size={15} /> Изменить время
-                  </button>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'flex-end' }}>
-                    {selectedSlots.map(sid => {
-                      const slot = hockeySlots.find(s => s.id === sid);
-                      if (!slot) return null;
-                      return (
-                        <span key={sid} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#15803d', fontWeight: 600 }}>
-                          {slot.date.slice(5).replace('-', '.')} {slot.time}
-                          <button onClick={() => setSelectedSlots(p => p.filter(id => id !== sid))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14, lineHeight: 1, padding: 0, marginLeft: 2 }}>×</button>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* ── Сводка выбранного слота ── */}
+                {(() => {
+                  const firstSlot = hockeySlots.find(s => s.id === selectedSlots[0]);
+                  const isHk = firstSlot && isHockeyHour(firstSlot.date, firstSlot.time, firstSlot);
+                  const slotLabel = firstSlot
+                    ? `${['Вс','Пн','Вт','Ср','Чт','Пт','Сб'][new Date(firstSlot.date+'T00:00:00').getDay()]} ${firstSlot.date.slice(8).replace(/^0/,'')} ${['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'][new Date(firstSlot.date+'T00:00:00').getMonth()]} · ${firstSlot.time}`
+                    : '';
+                  const typeHint = isHk ? '🏒 Хоккейный час' : trainingType === 'skating' ? '⛸️ Катание' : trainingType === 'ofp' ? '🏋️ ОФП' : trainingType === 'shooting' ? '🎯 Бросковая' : '⛸️ Катание / ОФП / Бросковая';
+                  return (
+                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '10px 14px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: '#16a34a', letterSpacing: 0.5, marginBottom: 3 }}>ВЫБРАНО</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#111' }}>{slotLabel}{selectedSlots.length > 1 ? ` + ещё ${selectedSlots.length - 1}` : ''}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{typeHint}</div>
+                      </div>
+                      <button onClick={() => setSelectedSlots([])}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 18, lineHeight: 1, padding: '2px 4px', marginLeft: 8 }}>
+                        ×
+                      </button>
+                    </div>
+                  );
+                })()}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                   <input type="text" placeholder="Имя Фамилия *" value={clientForm.name}
                     onChange={e => setClientForm({ ...clientForm, name: e.target.value })}
@@ -1708,6 +1815,12 @@ const BookingSystem = () => {
                   </div>
                 </div>
 
+                {/* Price row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 2px', borderTop: '1px solid #f3f4f6', borderBottom: '1px solid #f3f4f6', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>Стоимость занятия</span>
+                  <span style={{ fontSize: 15, fontWeight: 900, color: '#111' }}>{(PRICE_PER_SESSION * selectedSlots.length).toLocaleString('ru-RU')} ₽</span>
+                </div>
+
                 <button onClick={submitBooking} disabled={loading || !clientForm.name || !clientForm.phone || (() => {
                   const objs = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
                   const allHockey = objs.length > 0 && objs.every(s => isHockeyHour(s.date, s.time, s));
@@ -1715,12 +1828,13 @@ const BookingSystem = () => {
                 })()}
                   style={{
                     width: '100%', background: '#111', color: '#fff',
-                    padding: '14px', borderRadius: 14, fontWeight: 800, fontSize: 14,
+                    padding: '15px', borderRadius: 14, fontWeight: 800, fontSize: 15,
                     border: 'none', cursor: 'pointer',
                     opacity: (loading || !clientForm.name || !clientForm.phone) ? 0.5 : 1,
-                    transition: 'opacity 0.15s'
+                    transition: 'opacity 0.15s',
+                    letterSpacing: '-0.2px'
                   }}>
-                  {loading ? '...' : `Записаться • ${selectedSlots.length} ${selectedSlots.length === 1 ? 'слот' : 'слота'}`}
+                  {loading ? '...' : 'Отправить заявку →'}
                 </button>
               </div>
             </div>
