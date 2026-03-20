@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbzdU8yaNJrRhKroYWD3jUNVMArY4rFaDl8AXRy7PW1EUNo1DSnFmCCSvyWyBbPq6ome/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -675,6 +675,12 @@ const BookingSystem = () => {
   const submitBooking = async () => {
     if (!clientForm.name || !clientForm.phone || selectedSlots.length === 0)
       return showToast('Заполните имя и телефон', 'error');
+    // Дополнительная проверка — не пропустить запись на заблокированный выходной
+    const hasLockedWeekend = selectedSlots.some(sid => {
+      const slot = hockeySlots.find(s => s.id === sid);
+      return slot && isWeekend(slot.date) && !areWeekendsOpen();
+    });
+    if (hasLockedWeekend) return showToast('📅 Запись на выходные ещё не открыта', 'error');
     const selectedSlotObjects = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
     const allHockey = selectedSlotObjects.length > 0 && selectedSlotObjects.every(s => isHockeyHour(s.date, s.time, s));
     if (!allHockey && !trainingType) return showToast('Выберите тип тренировки', 'error');
@@ -777,11 +783,19 @@ const BookingSystem = () => {
   };
 
   const getAvailableDates = () => [...new Set(
-    hockeySlots.filter(s => s.status === 'available' && isSlotBookable(s.date, s.time)).map(s => s.date)
+    hockeySlots.filter(s => {
+      if (s.status !== 'available') return false;
+      if (!isSlotBookable(s.date, s.time)) return false;
+      if (isWeekend(s.date) && !areWeekendsOpen()) return false; // заблокированные выходные
+      return true;
+    }).map(s => s.date)
   )];
-  const getSlotsForDate = (dateStr) => hockeySlots
-    .filter(s => s.date === dateStr && s.status === 'available' && isSlotBookable(s.date, s.time))
-    .sort((a, b) => a.time.localeCompare(b.time));
+  const getSlotsForDate = (dateStr) => {
+    if (isWeekend(dateStr) && !areWeekendsOpen()) return []; // слоты не показываем для заблокированных выходных
+    return hockeySlots
+      .filter(s => s.date === dateStr && s.status === 'available' && isSlotBookable(s.date, s.time))
+      .sort((a, b) => a.time.localeCompare(b.time));
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -1539,7 +1553,8 @@ hockey-booking.vercel.app`;
                       const d = new Date(todayDate);
                       d.setDate(todayDate.getDate() + i);
                       const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                      strip.push({ ds, day: d.getDate(), label: dayLabels[d.getDay()], avail: availableDates.includes(ds), isToday: i === 0 });
+                      const isLockedWe = (d.getDay() === 0 || d.getDay() === 6) && !areWeekendsOpen();
+                      strip.push({ ds, day: d.getDate(), label: dayLabels[d.getDay()], avail: availableDates.includes(ds) && !isLockedWe, isToday: i === 0 });
                     }
                     const hasAny = strip.some(s => s.avail);
                     if (!hasAny) return null;
@@ -1608,11 +1623,11 @@ hockey-booking.vercel.app`;
 
                       return (
                         <button key={day} onClick={handleDayClick}
-                          disabled={isPast || (!isAvailable && !isWeekendLocked)}
+                          disabled={isPast || isWeekendLocked || !isAvailable}
                           style={{
                             aspectRatio: '1', borderRadius: 10, fontSize: 13,
                             background: bg, color, border, fontWeight,
-                            cursor: (isPast || (!isAvailable && !isWeekendLocked)) ? 'default' : 'pointer',
+                            cursor: (isPast || isWeekendLocked || !isAvailable) ? 'default' : 'pointer',
                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                             transition: 'transform 0.1s',
                             transform: isSelected ? 'scale(1.08)' : 'scale(1)'
