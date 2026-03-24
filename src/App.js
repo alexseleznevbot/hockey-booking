@@ -722,7 +722,8 @@ const BookingSystem = () => {
   const confirmBooking = async (bookingId) => {
     setLoading(true);
     const result = await api.post('adminConfirmBooking', { adminSecret: ADMIN_SECRET, bookingId });
-    if (result.ok) { showToast('Подтверждено', 'success'); await loadSlots(); await loadAllBookings(); }
+    if (result.ok) { showToast('Подтверждено', 'success'); await loadSlots(); await loadAllBookings(); await loadCancellations(); }
+    else showToast('Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
     setLoading(false);
   };
 
@@ -732,7 +733,7 @@ const BookingSystem = () => {
     if (result.ok) {
       showToast('Отклонено', 'success');
       await new Promise(r => setTimeout(r, 300));
-      await loadSlots(); await loadAllBookings();
+      await loadSlots(); await loadAllBookings(); await loadCancellations();
     }
     setLoading(false);
   };
