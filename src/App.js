@@ -358,6 +358,8 @@ const BookingSystem = () => {
   const [adminTab, setAdminTab] = useState('main');
   const [historyFilter, setHistoryFilter] = useState('all');
   const [financeFilter, setFinanceFilter] = useState('month');
+  const [bellText, setBellText] = useState('');
+  const [bellSent, setBellSent] = useState(null);
   const [clientSearch, setClientSearch] = useState('');
   const [clientSort, setClientSort] = useState('sessions'); // 'sessions' | 'lastDate' | 'name'
 
@@ -2178,6 +2180,47 @@ hockey-booking.vercel.app`;
                       )}
                     </div>
                   </div>
+                </div>
+
+                {/* ── Колокольчик — ручная рассылка «запишитесь» ── */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm mb-6 border-2 border-gray-200">
+                  <h2 className="font-bold mb-2 flex items-center gap-2">🔔 Напомнить клиентам записаться</h2>
+                  <p className="text-xs text-gray-500 mb-3">Рассылка всем клиентам с призывом записаться на тренировку</p>
+                  {(() => {
+                    const defaultMsg = '🏒 Привет! Давно не видели тебя на льду 👋\n\nЕсть свободные слоты на этой неделе — самое время записаться!\n\n📅 Выбрать время: hockey-booking.vercel.app';
+                    return (<>
+                      <textarea
+                        value={bellText}
+                        onChange={e => setBellText(e.target.value)}
+                        placeholder={defaultMsg}
+                        rows={4}
+                        maxLength={500}
+                        className="w-full p-3 border-2 border-gray-200 rounded-xl text-sm resize-none outline-none focus:border-black mb-3"
+                        style={{ boxSizing: 'border-box', fontFamily: 'inherit' }}
+                      />
+                      {bellSent !== null && (
+                        <div className={`text-xs mb-3 px-3 py-2 rounded-xl ${bellSent.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                          {bellSent.ok ? `✅ Отправлено ${bellSent.sent} клиентам` : `❌ Ошибка: ${bellSent.error}`}
+                        </div>
+                      )}
+                      <button
+                        disabled={loading}
+                        onClick={async () => {
+                          const msg = bellText.trim() || defaultMsg;
+                          if (!window.confirm(`Отправить сообщение всем клиентам?\n\n«${msg.slice(0, 120)}${msg.length > 120 ? '...' : ''}»`)) return;
+                          setLoading(true);
+                          setBellSent(null);
+                          const result = await api.post('adminBroadcast', { adminSecret: ADMIN_SECRET, message: msg });
+                          setBellSent(result.ok ? { ok: true, sent: result.sent || 0 } : { ok: false, error: result.error || 'Неизвестная ошибка' });
+                          if (result.ok) showToast(`🔔 Отправлено ${result.sent || 0} клиентам`, 'success');
+                          setLoading(false);
+                        }}
+                        className="w-full bg-black text-white p-3 rounded-xl font-bold text-sm disabled:opacity-50"
+                      >
+                        {loading ? '⏳ Отправка...' : '🔔 Отправить всем клиентам'}
+                      </button>
+                    </>);
+                  })()}
                 </div>
 
                 {pendingCancellations.length > 0 && (
