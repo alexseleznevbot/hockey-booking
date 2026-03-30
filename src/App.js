@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycby4r_jJeJD0LJ44PIUanjbxIkTKgTOrkgslgpmWvSYpzIrLD30eQ1dMGxt4tU__Q9PRQg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -1688,8 +1688,11 @@ hockey-booking.vercel.app`;
                                   Выбрано ✓
                                 </div>
                               ) : isHockey ? (
-                                <div style={{ background: '#0ea5e9', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>
-                                  Спец.
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ background: '#0ea5e9', color: '#fff', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>
+                                    Спец.
+                                  </div>
+                                  <div style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px solid #bae6fd', background: '#fff', flexShrink: 0 }} />
                                 </div>
                               ) : (
                                 <div style={{ width: 22, height: 22, borderRadius: '50%', border: '1.5px solid #e5e7eb' }} />
