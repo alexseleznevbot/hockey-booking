@@ -3,7 +3,7 @@ import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, Chevr
 
 // API Configuration
 const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
-const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
+const ADMIN_SECRET = 'SHS';
 
 // Hockey puck logo
 const BRAND_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cellipse cx='50' cy='50' rx='45' ry='25' fill='%23111'/%3E%3Cellipse cx='50' cy='45' rx='45' ry='25' fill='%23333'/%3E%3Cellipse cx='50' cy='45' rx='35' ry='18' fill='none' stroke='%23555' stroke-width='2'/%3E%3C/svg%3E";
@@ -364,7 +364,7 @@ const BookingSystem = () => {
   const [clientSort, setClientSort] = useState('sessions'); // 'sessions' | 'lastDate' | 'name'
 
   // Цена за одну тренировку (меняется здесь)
-  const PRICE_PER_SESSION = 2000;
+  const PRICE_PER_SESSION = 2500;
   const BOOKING_CUTOFF_HOURS = 1.5; // Запись закрывается за 1:30 до занятия
 
   // Returns true if slot is still open for booking (more than CUTOFF hours away)
@@ -1880,8 +1880,8 @@ hockey-booking.vercel.app`;
         title: 'Разовое занятие',
         sessions: 1,
         gift: 0,
-        price: 2000,
-        pricePerSession: 2000,
+        price: 2500,
+        pricePerSession: 2500,
         accent: '#f3f4f6',
         textColor: '#111',
         badge: null,
@@ -1892,7 +1892,7 @@ hockey-booking.vercel.app`;
         title: 'Абонемент 5+1',
         sessions: 5,
         gift: 1,
-        price: 10000,
+        price: 12500,
         pricePerSession: 1667,
         accent: '#111',
         textColor: '#fff',
@@ -1905,7 +1905,7 @@ hockey-booking.vercel.app`;
         title: 'Абонемент 10+2',
         sessions: 10,
         gift: 2,
-        price: 20000,
+        price: 25000,
         pricePerSession: 1667,
         accent: '#0f172a',
         textColor: '#fff',
