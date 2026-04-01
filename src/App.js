@@ -475,7 +475,7 @@ const BookingSystem = () => {
     try {
       const savedPhone = localStorage.getItem('shs_user_phone');
       const savedEmail = localStorage.getItem('shs_user_email');
-      if (savedPhone) { setWebUserPhone(savedPhone); setWebUserIdentified(true); }
+      if (savedPhone) { setWebUserPhone(savedPhone); setWebUserIdentified(true); setClientForm(prev => ({ ...prev, phone: '+7' + savedPhone.slice(-10) })); }
       if (savedEmail) setClientForm(prev => ({ ...prev, email: savedEmail }));
     } catch(e) {}
   }, []);
@@ -704,8 +704,8 @@ const BookingSystem = () => {
       const bookedSlotObjects = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
       setLastBookedSlots(bookedSlotObjects);
       setBookingSuccess(true); setSelectedSlots([]); setTrainingType('');
-      try { localStorage.setItem('shs_user_phone', clientForm.phone.replace(/\\D/g, '')); if (clientForm.email) localStorage.setItem('shs_user_email', clientForm.email); setWebUserPhone(clientForm.phone.replace(/\\D/g, '')); setWebUserIdentified(true); } catch(e) {}
-      setClientForm({ name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', phone: '', telegram: telegramUser?.username || '', comment: '', birthDate: '' });
+      try { localStorage.setItem('shs_user_phone', clientForm.phone.replace(/\D/g, '')); if (clientForm.email) localStorage.setItem('shs_user_email', clientForm.email); setWebUserPhone(clientForm.phone.replace(/\D/g, '')); setWebUserIdentified(true); } catch(e) {}
+      setClientForm(prev => ({ ...prev, comment: '' }));
       if (refCode) setRefCode(''); // сбрасываем реф.код после использования
       if (result.refDiscount > 0) showToast(`🎁 Скидка ${result.refDiscount}% применена!`, 'success');
       await loadSlots();
@@ -1435,7 +1435,7 @@ hockey-booking.vercel.app`;
                   <div style={{ background: '#f9fafb', borderRadius: 14, padding: 16, marginBottom: 16, border: '1px solid #f0f0f0' }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 8 }}>Найти мои записи</p>
                     <input type="tel" placeholder="Ваш телефон" value={myBookingsPhone} onChange={e => setMyBookingsPhone(e.target.value)} style={{ width: '100%', padding: '12px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
-                    <button onClick={async () => { if (!myBookingsPhone) return; await loadBookingsByPhone(myBookingsPhone); setWebUserPhone(myBookingsPhone.replace(/\\D/g, '')); setWebUserIdentified(true); try { localStorage.setItem('shs_user_phone', myBookingsPhone.replace(/\\D/g, '')); } catch(e) {} loadMyStreakData(); loadPendingRatings(); }} disabled={loading || !myBookingsPhone}
+                    <button onClick={async () => { if (!myBookingsPhone) return; await loadBookingsByPhone(myBookingsPhone); setWebUserPhone(myBookingsPhone.replace(/\D/g, '')); setWebUserIdentified(true); try { localStorage.setItem('shs_user_phone', myBookingsPhone.replace(/\D/g, '')); } catch(e) {} loadMyStreakData(); loadPendingRatings(); }} disabled={loading || !myBookingsPhone}
                       style={{ width: '100%', background: '#111', color: '#fff', padding: '12px', borderRadius: 12, fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', opacity: (!myBookingsPhone || loading) ? 0.5 : 1 }}>
                       {loading ? '...' : 'Найти'}
                     </button>
