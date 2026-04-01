@@ -3,7 +3,7 @@ import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, Chevr
 
 // API Configuration
 const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
-const ADMIN_SECRET = 'SHS';
+const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
 const BRAND_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cellipse cx='50' cy='50' rx='45' ry='25' fill='%23111'/%3E%3Cellipse cx='50' cy='45' rx='45' ry='25' fill='%23333'/%3E%3Cellipse cx='50' cy='45' rx='35' ry='18' fill='none' stroke='%23555' stroke-width='2'/%3E%3C/svg%3E";
