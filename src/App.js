@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send, Star, Mail } from 'lucide-react';
 
 // API Configuration
 const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
@@ -340,7 +340,8 @@ const BookingSystem = () => {
     phone: '+7',
     telegram: telegramUser?.username || '',
     comment: '',
-    birthDate: ''
+    birthDate: '',
+    email: ''
   });
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [trainingType, setTrainingType] = useState('');
@@ -395,6 +396,10 @@ const BookingSystem = () => {
   // Streak
   const [myStreak, setMyStreak] = useState(0);
   const [myMaxStreak, setMyMaxStreak] = useState(0);
+  const [pendingRatings, setPendingRatings] = useState([]);
+  const [webUserPhone, setWebUserPhone] = useState('');
+  const [webUserIdentified, setWebUserIdentified] = useState(false);
+  const [lastBookedSlots, setLastBookedSlots] = useState([]);
 
   // Bookings filter tabs for "My bookings"
   const [myBookingsFilter, setMyBookingsFilter] = useState('upcoming');
@@ -466,6 +471,17 @@ const BookingSystem = () => {
     } catch(e) {}
   }, []);
 
+  useEffect(() => {
+    try {
+      const savedPhone = localStorage.getItem('shs_user_phone');
+      const savedEmail = localStorage.getItem('shs_user_email');
+      const savedBD = localStorage.getItem('shs_user_birthDate');
+      if (savedPhone) { setWebUserPhone(savedPhone); setWebUserIdentified(true); }
+      if (savedEmail) setClientForm(prev => ({ ...prev, email: savedEmail }));
+      if (savedBD) setClientForm(prev => ({ ...prev, birthDate: savedBD }));
+    } catch(e) {}
+  }, []);
+
   const loadSlots = async () => {
     setLoading(true);
     const result = await api.get('getSlots');
@@ -498,34 +514,20 @@ const BookingSystem = () => {
   };
 
   const loadMyRefData = async () => {
-    if (!telegramUser?.chatId) {
-      showToast('Откройте приложение через Telegram', 'error');
-      return;
-    }
-    try {
-      const r = await api.post('getMyRefCode', { chatId: telegramUser.chatId });
-      if (r.ok && r.refCode) {
-        setMyRefCode(r.refCode);
-        setMyRefCount(r.refCount || 0);
-        setMyRefDiscount(r.refDiscount || 0);
-      } else {
-        showToast('Не удалось получить ссылку', 'error');
-      }
-    } catch(e) {
-      showToast('Ошибка сети', 'error');
-    }
+    if (telegramUser?.chatId) {
+      try { const r = await api.post('getMyRefCode', { chatId: telegramUser.chatId }); if (r.ok && r.refCode) { setMyRefCode(r.refCode); setMyRefCount(r.refCount || 0); setMyRefDiscount(r.refDiscount || 0); } else showToast('Не удалось получить ссылку', 'error'); } catch(e) { showToast('Ошибка сети', 'error'); }
+    } else if (webUserPhone) {
+      try { const r = await api.post('getMyRefCodeByPhone', { phone: webUserPhone }); if (r.ok && r.refCode) { setMyRefCode(r.refCode); setMyRefCount(r.refCount || 0); setMyRefDiscount(r.refDiscount || 0); } else showToast('Не удалось получить ссылку', 'error'); } catch(e) { showToast('Ошибка сети', 'error'); }
+    } else { showToast('Сначала запишитесь на тренировку', 'error'); }
   };
 
   const loadMyStreakData = async () => {
-    if (!telegramUser?.chatId) return;
-    try {
-      const r = await api.get('getUserData', { chatId: telegramUser.chatId });
-      if (r.ok && r.user) {
-        setMyStreak(parseInt(r.user.streakCount || '0', 10));
-        setMyMaxStreak(parseInt(r.user.maxStreak || '0', 10));
-      }
-    } catch(e) {}
+    if (telegramUser?.chatId) { try { const r = await api.get('getUserData', { chatId: telegramUser.chatId }); if (r.ok && r.user) { setMyStreak(parseInt(r.user.streakCount || '0', 10)); setMyMaxStreak(parseInt(r.user.maxStreak || '0', 10)); } } catch(e) {} }
+    else if (webUserPhone) { try { const r = await api.get('getUserByPhone', { phone: webUserPhone }); if (r.ok && r.user) { setMyStreak(parseInt(r.user.streakCount || '0', 10)); setMyMaxStreak(parseInt(r.user.maxStreak || '0', 10)); } } catch(e) {} }
   };
+
+  const loadPendingRatings = async () => { const params = {}; if (telegramUser?.chatId) params.chatId = telegramUser.chatId; else if (webUserPhone) params.phone = webUserPhone; else return; try { const r = await api.get('getPendingRatings', params); if (r.ok) setPendingRatings(r.pendingRatings || []); } catch(e) {} };
+  const submitWebRating = async (bookingId, score) => { try { const r = await api.post('submitRating', { bookingId, score }); if (r.ok) { showToast('Спасибо за оценку! ' + '⭐'.repeat(score), 'success'); setPendingRatings(prev => prev.filter(p => p.bookingId !== bookingId)); } } catch(e) {} };
 
   const loadBookingsByChatId = async (chatId) => {
     if (!chatId) return;
@@ -548,7 +550,9 @@ const BookingSystem = () => {
           ...prev,
           name: savedName || prev.name,
           phone: result.user.phone || prev.phone,
-          telegram: result.user.username || prev.telegram
+          telegram: result.user.username || prev.telegram,
+          email: result.user.email || prev.email,
+          birthDate: result.user.birthDate || prev.birthDate
         }));
         if (result.user.phone) setMyBookingsPhone(result.user.phone);
       }
@@ -559,8 +563,10 @@ const BookingSystem = () => {
   useEffect(() => { loadSlots(); loadUserData(); }, []);
 
   useEffect(() => {
-    if (showMyBookings && isTelegramWebApp && telegramUser?.chatId) {
-      loadBookingsByChatId(telegramUser.chatId);
+    if (showMyBookings) {
+      if (isTelegramWebApp && telegramUser?.chatId) loadBookingsByChatId(telegramUser.chatId);
+      else if (webUserPhone) loadBookingsByPhone(webUserPhone);
+      loadPendingRatings();
     }
   }, [showMyBookings]);
 
@@ -697,7 +703,10 @@ const BookingSystem = () => {
     if (telegramUser?.chatId) bookingData.chatId = telegramUser.chatId;
     const result = await api.post('createBooking', bookingData);
     if (result.ok) {
+      const bookedSlotObjects = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
+      setLastBookedSlots(bookedSlotObjects);
       setBookingSuccess(true); setSelectedSlots([]); setTrainingType('');
+      try { localStorage.setItem('shs_user_phone', clientForm.phone.replace(/\\D/g, '')); if (clientForm.email) localStorage.setItem('shs_user_email', clientForm.email); if (clientForm.birthDate) localStorage.setItem('shs_user_birthDate', clientForm.birthDate); setWebUserPhone(clientForm.phone.replace(/\\D/g, '')); setWebUserIdentified(true); } catch(e) {}
       setClientForm({ name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', phone: '', telegram: telegramUser?.username || '', comment: '', birthDate: '' });
       if (refCode) setRefCode(''); // сбрасываем реф.код после использования
       if (result.refDiscount > 0) showToast(`🎁 Скидка ${result.refDiscount}% применена!`, 'success');
@@ -1200,7 +1209,7 @@ const BookingSystem = () => {
     if (bookingSuccess) {
       const firstName = clientForm.name ? clientForm.name.trim().split(' ')[0] : (telegramUser?.firstName || '');
       // Собираем детали последней записи для карточки
-      const lastSlot = hockeySlots.find(s => s.id === selectedSlots[0]) ||
+      const lastSlot = (lastBookedSlots.length > 0 ? lastBookedSlots[0] : null) ||
         (hockeyBookings[0] ? hockeySlots.find(s => String(hockeyBookings[0].slotIds || '').split(',')[0].trim() === s.id) : null);
       const lastDate = lastSlot ? new Date(lastSlot.date + 'T00:00:00') : null;
       const dayNamesRu = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
@@ -1382,7 +1391,7 @@ hockey-booking.vercel.app`;
               )}
 
               {/* Referral block */}
-              {isTelegramWebApp && telegramUser?.chatId && (
+              {(isTelegramWebApp ? !!telegramUser?.chatId : !!webUserPhone) && (
                 <div className="fade-up" style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 14, padding: '12px 14px', marginBottom: 16 }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#5b21b6', marginBottom: 4 }}>👥 Пригласи друга — получи скидку 20%</p>
                   {myRefCode ? (
@@ -1392,7 +1401,7 @@ hockey-booking.vercel.app`;
                       </p>
                       <button
                         onClick={() => {
-                          const link = `https://t.me/SHSHockeyBot?start=ref_${myRefCode}`;
+                          const link = isTelegramWebApp ? `https://t.me/SHSHockeyBot?start=ref_${myRefCode}` : `https://hockey-booking.vercel.app?ref=${myRefCode}`;
                           if (navigator.share) {
                             navigator.share({ title: 'Хоккейные тренировки', text: 'Записывайся на тренировки по моей ссылке!', url: link });
                           } else {
@@ -1417,14 +1426,23 @@ hockey-booking.vercel.app`;
 
               {/* Phone input for non-Telegram */}
               {!isTelegramWebApp && (
-                <div style={{ background: '#f9fafb', borderRadius: 14, padding: 16, marginBottom: 16, border: '1px solid #f0f0f0' }}>
-                  <input type="tel" placeholder="Ваш телефон" value={myBookingsPhone} onChange={e => setMyBookingsPhone(e.target.value)}
-                    style={{ width: '100%', padding: '12px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
-                  <button onClick={() => loadBookingsByPhone(myBookingsPhone)} disabled={loading || !myBookingsPhone}
-                    style={{ width: '100%', background: '#111', color: '#fff', padding: '12px', borderRadius: 12, fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', opacity: (!myBookingsPhone || loading) ? 0.5 : 1 }}>
-                    {loading ? '...' : 'Найти'}
-                  </button>
-                </div>
+                webUserIdentified && webUserPhone ? (
+                  <div className="fade-up" style={{ background: 'linear-gradient(135deg, #f0fdf4, #f9fafb)', border: '1px solid #dcfce7', borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>📞</div>
+                    <div style={{ flex: 1 }}><p style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>+7{webUserPhone.slice(-10)}</p><p style={{ fontSize: 11, color: '#16a34a' }}>Ваш аккаунт</p></div>
+                    {myStreak > 0 && (<div style={{ textAlign: 'right' }}><p style={{ fontSize: 18, lineHeight: 1 }}>🔥</p><p style={{ fontSize: 11, fontWeight: 700, color: '#ea580c' }}>{myStreak}</p></div>)}
+                    <button onClick={() => { setWebUserIdentified(false); setWebUserPhone(''); setHockeyBookings([]); try { localStorage.removeItem('shs_user_phone'); } catch(e) {} }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 12 }}>Выйти</button>
+                  </div>
+                ) : (
+                  <div style={{ background: '#f9fafb', borderRadius: 14, padding: 16, marginBottom: 16, border: '1px solid #f0f0f0' }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 8 }}>Найти мои записи</p>
+                    <input type="tel" placeholder="Ваш телефон" value={myBookingsPhone} onChange={e => setMyBookingsPhone(e.target.value)} style={{ width: '100%', padding: '12px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
+                    <button onClick={async () => { if (!myBookingsPhone) return; await loadBookingsByPhone(myBookingsPhone); setWebUserPhone(myBookingsPhone.replace(/\\D/g, '')); setWebUserIdentified(true); try { localStorage.setItem('shs_user_phone', myBookingsPhone.replace(/\\D/g, '')); } catch(e) {} loadMyStreakData(); loadPendingRatings(); }} disabled={loading || !myBookingsPhone}
+                      style={{ width: '100%', background: '#111', color: '#fff', padding: '12px', borderRadius: 12, fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', opacity: (!myBookingsPhone || loading) ? 0.5 : 1 }}>
+                      {loading ? '...' : 'Найти'}
+                    </button>
+                  </div>
+                )
               )}
 
               {loading ? <Spinner /> : (
@@ -1782,7 +1800,8 @@ hockey-booking.vercel.app`;
                   rows={2} maxLength={200}
                   style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', resize: 'none', marginBottom: 8, boxSizing: 'border-box' }} />
 
-                {/* Birthday field */}
+                {/* Birthday field — скрывается если уже сохранено */}
+                {!(savedUserData?.birthDate || clientForm.birthDate) && (
                 <div style={{ marginBottom: 8 }}>
                   <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4, marginLeft: 2 }}>
                     🎂 Дата рождения (для поздравления)
@@ -1795,6 +1814,19 @@ hockey-booking.vercel.app`;
                     style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', boxSizing: 'border-box', color: clientForm.birthDate ? '#111' : '#9ca3af' }}
                   />
                 </div>
+                )}
+
+                {/* Email field */}
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4, marginLeft: 2 }}>📧 Email (для уведомлений без Telegram)</label>
+                  <input type="email" placeholder="example@mail.ru" value={clientForm.email} onChange={e => setClientForm({ ...clientForm, email: e.target.value })} style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                  {!isTelegramWebApp && clientForm.email && (<p style={{ fontSize: 11, color: '#3b82f6', marginTop: 4, marginLeft: 2 }}>📧 Уведомления придут на этот email</p>)}
+                </div>
+                {!isTelegramWebApp && !clientForm.email && !clientForm.telegram && (
+                  <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 12px', marginBottom: 8 }}>
+                    <p style={{ fontSize: 11, color: '#a16207' }}>⚠️ Укажите email или Telegram для уведомлений</p>
+                  </div>
+                )}
 
                 {/* Training type */}
                 {(() => {
