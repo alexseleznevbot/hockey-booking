@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send, Star, Mail } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbwHLrhoBgr-g885nHd2s5MN2Ryq6XEFVFEK_ljDc28_HrbnLUtFJ5nsuG8t2sVwjmWaTA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwU4zvZ_AxMSC6mXQB0KDz5DysHU68MXVOUL5kyejtWnta3fRT6hJZFXY575fX_g1wRgg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -475,10 +475,8 @@ const BookingSystem = () => {
     try {
       const savedPhone = localStorage.getItem('shs_user_phone');
       const savedEmail = localStorage.getItem('shs_user_email');
-      const savedBD = localStorage.getItem('shs_user_birthDate');
       if (savedPhone) { setWebUserPhone(savedPhone); setWebUserIdentified(true); }
       if (savedEmail) setClientForm(prev => ({ ...prev, email: savedEmail }));
-      if (savedBD) setClientForm(prev => ({ ...prev, birthDate: savedBD }));
     } catch(e) {}
   }, []);
 
@@ -527,7 +525,7 @@ const BookingSystem = () => {
   };
 
   const loadPendingRatings = async () => { const params = {}; if (telegramUser?.chatId) params.chatId = telegramUser.chatId; else if (webUserPhone) params.phone = webUserPhone; else return; try { const r = await api.get('getPendingRatings', params); if (r.ok) setPendingRatings(r.pendingRatings || []); } catch(e) {} };
-  const submitWebRating = async (bookingId, score) => { try { const r = await api.post('submitRating', { bookingId, score }); if (r.ok) { showToast('Спасибо за оценку! ' + '⭐'.repeat(score), 'success'); setPendingRatings(prev => prev.filter(p => p.bookingId !== bookingId)); } } catch(e) {} };
+  const submitWebRating = async (bookingId, score) => { try { const r = await api.post('submitRating', { bookingId, score }); if (r.ok) { showToast('Спасибо! ' + '⭐'.repeat(score), 'success'); setPendingRatings(prev => prev.filter(p => p.bookingId !== bookingId)); } } catch(e) {} };
 
   const loadBookingsByChatId = async (chatId) => {
     if (!chatId) return;
@@ -706,7 +704,7 @@ const BookingSystem = () => {
       const bookedSlotObjects = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
       setLastBookedSlots(bookedSlotObjects);
       setBookingSuccess(true); setSelectedSlots([]); setTrainingType('');
-      try { localStorage.setItem('shs_user_phone', clientForm.phone.replace(/\\D/g, '')); if (clientForm.email) localStorage.setItem('shs_user_email', clientForm.email); if (clientForm.birthDate) localStorage.setItem('shs_user_birthDate', clientForm.birthDate); setWebUserPhone(clientForm.phone.replace(/\\D/g, '')); setWebUserIdentified(true); } catch(e) {}
+      try { localStorage.setItem('shs_user_phone', clientForm.phone.replace(/\\D/g, '')); if (clientForm.email) localStorage.setItem('shs_user_email', clientForm.email); setWebUserPhone(clientForm.phone.replace(/\\D/g, '')); setWebUserIdentified(true); } catch(e) {}
       setClientForm({ name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '', phone: '', telegram: telegramUser?.username || '', comment: '', birthDate: '' });
       if (refCode) setRefCode(''); // сбрасываем реф.код после использования
       if (result.refDiscount > 0) showToast(`🎁 Скидка ${result.refDiscount}% применена!`, 'success');
@@ -1511,7 +1509,7 @@ hockey-booking.vercel.app`;
       <>
         <style>{styles}</style>
         {toast && <Toast {...toast} onClose={() => setToast(null)} />}
-        <div className="min-h-screen bg-white pb-44">
+        <div className="min-h-screen bg-white pb-96">
 
           {/* Top stripe */}
           <div style={{ height: 4, background: '#111' }} />
@@ -1740,6 +1738,7 @@ hockey-booking.vercel.app`;
               position: 'fixed', bottom: 0, left: 0, right: 0,
               background: '#fff', borderTop: '1px solid #f3f4f6',
               boxShadow: '0 -8px 32px rgba(0,0,0,0.08)', padding: '16px',
+              maxHeight: '70vh', overflowY: 'auto',
               animation: 'slideDown 0.25s ease'
             }}>
               <div className="max-w-lg mx-auto">
@@ -1800,33 +1799,12 @@ hockey-booking.vercel.app`;
                   rows={2} maxLength={200}
                   style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', resize: 'none', marginBottom: 8, boxSizing: 'border-box' }} />
 
-                {/* Birthday field — скрывается если уже сохранено */}
-                {!(savedUserData?.birthDate || clientForm.birthDate) && (
-                <div style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4, marginLeft: 2 }}>
-                    🎂 Дата рождения (для поздравления)
-                  </label>
-                  <input
-                    type="date"
-                    value={clientForm.birthDate}
-                    onChange={e => setClientForm({ ...clientForm, birthDate: e.target.value })}
-                    max={new Date().toISOString().split('T')[0]}
-                    style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', boxSizing: 'border-box', color: clientForm.birthDate ? '#111' : '#9ca3af' }}
-                  />
-                </div>
-                )}
-
                 {/* Email field */}
                 <div style={{ marginBottom: 8 }}>
                   <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4, marginLeft: 2 }}>📧 Email (для уведомлений без Telegram)</label>
                   <input type="email" placeholder="example@mail.ru" value={clientForm.email} onChange={e => setClientForm({ ...clientForm, email: e.target.value })} style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
                   {!isTelegramWebApp && clientForm.email && (<p style={{ fontSize: 11, color: '#3b82f6', marginTop: 4, marginLeft: 2 }}>📧 Уведомления придут на этот email</p>)}
                 </div>
-                {!isTelegramWebApp && !clientForm.email && !clientForm.telegram && (
-                  <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 12px', marginBottom: 8 }}>
-                    <p style={{ fontSize: 11, color: '#a16207' }}>⚠️ Укажите email или Telegram для уведомлений</p>
-                  </div>
-                )}
 
                 {/* Training type */}
                 {(() => {
