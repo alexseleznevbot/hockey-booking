@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send, Star, Mail } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycby7VSzNopOMIYs9vWyls3RkdDXuqrrtykJJOjnFLQRW7xxPGk8coup-yQGbHLLU1QcE/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzwF7KkoyA-j19SqXWJXC6mzPf17hCDT7XXFm0TCNADIUCTX-lvoXbrCxEBY5SJmyhhxA/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
@@ -340,7 +340,6 @@ const BookingSystem = () => {
     phone: '+7',
     telegram: telegramUser?.username || '',
     comment: '',
-    birthDate: '',
     email: ''
   });
   const [selectedSlots, setSelectedSlots] = useState([]);
@@ -549,8 +548,7 @@ const BookingSystem = () => {
           name: savedName || prev.name,
           phone: result.user.phone || prev.phone,
           telegram: result.user.username || prev.telegram,
-          email: result.user.email || prev.email,
-          birthDate: result.user.birthDate || prev.birthDate
+          email: result.user.email || prev.email
         }));
         if (result.user.phone) setMyBookingsPhone(result.user.phone);
       }
@@ -1261,7 +1259,7 @@ const BookingSystem = () => {
               </div>
 
               {/* Streak если есть */}
-              {myStreak >= 2 && (
+              {myStreak >= 3 && (
                 <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '12px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ fontSize: 24 }}>🔥</div>
                   <div>
@@ -1374,7 +1372,7 @@ hockey-booking.vercel.app`;
               )}
 
               {/* Streak card */}
-              {myStreak >= 2 && (
+              {myStreak >= 3 && (
                 <div className="fade-up" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 14, padding: '12px 14px', marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
@@ -1389,7 +1387,7 @@ hockey-booking.vercel.app`;
               )}
 
               {/* Referral block */}
-              {(isTelegramWebApp ? !!telegramUser?.chatId : !!webUserPhone) && (
+              {(isTelegramWebApp ? !!telegramUser?.chatId : !!webUserPhone) && myStreak >= 3 && (
                 <div className="fade-up" style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 14, padding: '12px 14px', marginBottom: 16 }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: '#5b21b6', marginBottom: 4 }}>👥 Пригласи друга — получи скидку 20%</p>
                   {myRefCode ? (
