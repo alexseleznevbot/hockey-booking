@@ -339,7 +339,6 @@ const BookingSystem = () => {
     name: telegramUser ? `${telegramUser.firstName} ${telegramUser.lastName}`.trim() : '',
     phone: '+7',
     telegram: telegramUser?.username || '',
-    comment: '',
     email: ''
   });
   const [selectedSlots, setSelectedSlots] = useState([]);
@@ -473,7 +472,9 @@ const BookingSystem = () => {
   useEffect(() => {
     try {
       const savedPhone = localStorage.getItem('shs_user_phone');
+      const savedName = localStorage.getItem('shs_user_name');
       const savedEmail = localStorage.getItem('shs_user_email');
+      if (savedName) setClientForm(prev => ({ ...prev, name: prev.name || savedName }));
       if (savedPhone) { setWebUserPhone(savedPhone); setWebUserIdentified(true); setClientForm(prev => ({ ...prev, phone: '+7' + savedPhone.slice(-10) })); }
       if (savedEmail) setClientForm(prev => ({ ...prev, email: savedEmail }));
     } catch(e) {}
@@ -702,8 +703,8 @@ const BookingSystem = () => {
       const bookedSlotObjects = selectedSlots.map(sid => hockeySlots.find(s => s.id === sid)).filter(Boolean);
       setLastBookedSlots(bookedSlotObjects);
       setBookingSuccess(true); setSelectedSlots([]); setTrainingType('');
-      try { localStorage.setItem('shs_user_phone', clientForm.phone.replace(/\D/g, '')); if (clientForm.email) localStorage.setItem('shs_user_email', clientForm.email); setWebUserPhone(clientForm.phone.replace(/\D/g, '')); setWebUserIdentified(true); } catch(e) {}
-      setClientForm(prev => ({ ...prev, comment: '' }));
+      try { localStorage.setItem('shs_user_phone', clientForm.phone.replace(/\D/g, '')); if (clientForm.name) localStorage.setItem('shs_user_name', clientForm.name); if (clientForm.email) localStorage.setItem('shs_user_email', clientForm.email); setWebUserPhone(clientForm.phone.replace(/\D/g, '')); setWebUserIdentified(true); } catch(e) {}
+      // данные клиента сохраняются
       if (refCode) setRefCode(''); // сбрасываем реф.код после использования
       if (result.refDiscount > 0) showToast(`🎁 Скидка ${result.refDiscount}% применена!`, 'success');
       await loadSlots();
@@ -1792,10 +1793,7 @@ hockey-booking.vercel.app`;
                   <p style={{ fontSize: 11, color: '#16a34a', marginBottom: 6, marginLeft: 2 }}>✓ Уведомления включены</p>
                 )}
 
-                <textarea placeholder="Комментарий (необязательно)" value={clientForm.comment}
-                  onChange={e => setClientForm({ ...clientForm, comment: e.target.value })}
-                  rows={2} maxLength={200}
-                  style={{ width: '100%', padding: '11px 14px', border: '2px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', resize: 'none', marginBottom: 8, boxSizing: 'border-box' }} />
+                
 
                 {/* Email field */}
                 <div style={{ marginBottom: 8 }}>
