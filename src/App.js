@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, Phone, ArrowLeft, X, History, AlertCircle, List, Users, Send, Star, Mail } from 'lucide-react';
 
 // API Configuration
-const API_URL = 'https://script.google.com/macros/s/AKfycbzwF7KkoyA-j19SqXWJXC6mzPf17hCDT7XXFm0TCNADIUCTX-lvoXbrCxEBY5SJmyhhxA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyldewH0zUUpbYylm6hP0Qsw0S5zasZn3l5xOHcxxoV3s9X56UHxBvUyvvVBzMm3xc2gg/exec';
 const ADMIN_SECRET = 'ShsHockey_2026_!Seleznev';
 
 // Hockey puck logo
